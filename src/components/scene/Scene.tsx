@@ -78,7 +78,8 @@ function Director() {
     live.slash = since < 1.1 ? Math.sin((since / 1.1) * Math.PI) : 0;
 
     live.color.copy(COLORS.blue).lerp(COLORS.red, live.red);
-    edgeUniforms.uColor.value.copy(live.color).lerp(COLORS.ice, 0.18 * (1 - live.red));
+    // The blade's own energy is crimson; bankai drives it toward white-hot.
+    edgeUniforms.uColor.value.copy(COLORS.crimson).lerp(COLORS.hot, live.red * 0.45);
 
     // Camera travel: scroll pulls the world towards us.
     live.travel += (store.scroll * 90 - live.travel) * (rm ? 1 : 1 - Math.exp(-dt * 4));

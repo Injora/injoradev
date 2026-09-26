@@ -13,22 +13,24 @@ export function SceneFallback() {
       >
         <defs>
           <linearGradient id="fb-steel" x1="0" x2="1">
-            <stop offset="0" stopColor="#5b606b" />
-            <stop offset="0.45" stopColor="#e9ebf0" />
-            <stop offset="0.55" stopColor="#9ea3ad" />
-            <stop offset="1" stopColor="#2b2e35" />
+            <stop offset="0" stopColor="#060607" />
+            <stop offset="0.45" stopColor="#2a2b31" />
+            <stop offset="0.55" stopColor="#141417" />
+            <stop offset="1" stopColor="#6b6e76" />
           </linearGradient>
           <linearGradient id="fb-edge" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#cfe6ff" />
-            <stop offset="1" stopColor="#4da3ff" stopOpacity="0.2" />
+            <stop offset="0" stopColor="#ff6a70" />
+            <stop offset="1" stopColor="#ff2338" stopOpacity="0.2" />
           </linearGradient>
         </defs>
         <path d="M44 300 L44 40 Q46 14 60 4 Q58 30 57 60 L57 300 Z" fill="url(#fb-steel)" />
         <path d="M57 60 Q58 30 60 4" stroke="url(#fb-edge)" strokeWidth="1.2" fill="none" />
         <line x1="57" y1="60" x2="57" y2="300" stroke="url(#fb-edge)" strokeWidth="0.8" />
         <ellipse cx="50" cy="304" rx="20" ry="4" fill="#1b1c22" stroke="#3a3d46" strokeWidth="0.6" />
-        <rect x="46" y="308" width="8" height="78" rx="3" fill="#0b0b0f" />
-        <circle cx="50" cy="304" r="3" fill="#cfe6ff" />
+        <rect x="46" y="308" width="8" height="90" rx="3" fill="#0b0b0f" />
+        {[316, 328, 340, 352, 364, 376, 388].map((y) => (
+          <path key={y} d={`M50 ${y - 4} L52.5 ${y} L50 ${y + 4} L47.5 ${y} Z`} fill="#c8182a" />
+        ))}
       </svg>
     </div>
   );

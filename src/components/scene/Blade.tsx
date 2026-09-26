@@ -45,22 +45,67 @@ function createScratchTexture() {
   return tex;
 }
 
+/** Black cord crossing over red diamonds, drawn once to a canvas. */
+function createGripTexture() {
+  const w = 256;
+  const h = 1024;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#0a0a0c";
+  ctx.fillRect(0, 0, w, h);
+  const rows = 11;
+  const step = h / rows;
+  for (let i = 0; i < rows; i++) {
+    const cy = step * (i + 0.5);
+    // diamonds on the front and back faces of the grip
+    for (const cx of [w * 0.25, w * 0.75]) {
+      const g = ctx.createLinearGradient(cx, cy - step * 0.4, cx, cy + step * 0.4);
+      g.addColorStop(0, "#4a060d");
+      g.addColorStop(0.5, "#8e0f1d");
+      g.addColorStop(1, "#40050b");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - step * 0.36);
+      ctx.lineTo(cx + w * 0.085, cy);
+      ctx.lineTo(cx, cy + step * 0.36);
+      ctx.lineTo(cx - w * 0.085, cy);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // subtle weave highlight on the black cord
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 6; k++) {
+      ctx.beginPath();
+      ctx.moveTo(0, cy - step * 0.5 + k * 6);
+      ctx.lineTo(w, cy + step * 0.5 - k * 6);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 const edgeUniforms = {
   uTime: { value: 0 },
   uEnergy: { value: 0.2 },
-  uColor: { value: new THREE.Color("#4da3ff") },
+  uColor: { value: new THREE.Color("#ff2338") },
 };
 
 function useBladeMaterial() {
   return useMemo(() => {
     const m = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#d4d7de"),
-      metalness: 1,
-      roughness: 0.22,
+      color: new THREE.Color("#141418"),
+      metalness: 0.9,
+      roughness: 0.34,
       roughnessMap: createScratchTexture(),
-      clearcoat: 0.35,
-      clearcoatRoughness: 0.25,
-      envMapIntensity: 1.2,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.16,
+      envMapIntensity: 1.4,
     });
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, edgeUniforms);
@@ -75,29 +120,29 @@ function useBladeMaterial() {
           "#include <common>",
           "#include <common>\nuniform float uTime;\nuniform float uEnergy;\nuniform vec3 uColor;\nvarying float vEdge;\nvarying float vLen;"
         )
-        // Hamon: a wavy temper line, visible even when the blade is sealed.
+        // Black blade; only the freshly sharpened edge shows bare steel.
         .replace(
           "#include <color_fragment>",
           `#include <color_fragment>
-          float hamonLine = 0.2 + 0.035 * sin(vLen * 70.0) + 0.02 * sin(vLen * 23.0 + 1.3);
-          float hamon = smoothstep(hamonLine + 0.03, hamonLine - 0.03, vEdge);
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.18 + 0.04, hamon * 0.6);`
+          float bevel = smoothstep(0.075, 0.03, vEdge);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.43, 0.46), bevel);
+          float hamon = bevel;`
         )
         .replace(
           "#include <roughnessmap_fragment>",
           `#include <roughnessmap_fragment>
-          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, hamon);`
+          roughnessFactor = mix(roughnessFactor, 0.14, bevel);`
         )
         // Energy running up the cutting edge.
         .replace(
           "#include <emissivemap_fragment>",
           `#include <emissivemap_fragment>
-          float edgeMask = smoothstep(0.16, 0.0, vEdge);
+          float edgeMask = smoothstep(0.1, 0.0, vEdge);
           float flow = 0.5 + 0.5 * sin(vLen * 22.0 - uTime * 3.2);
           float pulse = 0.55 + 0.45 * flow;
           float baseFade = smoothstep(0.0, 0.1, vLen);
           totalEmissiveRadiance += uColor * edgeMask * pulse * baseFade * uEnergy * 2.4;
-          totalEmissiveRadiance += uColor * hamon * uEnergy * 0.12;`
+          totalEmissiveRadiance += uColor * hamon * uEnergy * 0.25;`
         );
     };
     return m;
@@ -177,6 +222,7 @@ export function Blade() {
   const spin = useRef<THREE.Group>(null);
   const rings = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);
+  const pommel = useRef<THREE.Object3D>(null);
   const { camera, size } = useThree();
 
   const bladeGeo = useMemo(() => createBladeGeometry(), []);
@@ -185,18 +231,17 @@ export function Blade() {
   const bladeMat = useBladeMaterial();
 
   const guardMat = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#1b1c22", metalness: 1, roughness: 0.32, clearcoat: 0.5, envMapIntensity: 1 }),
+    () => new THREE.MeshPhysicalMaterial({ color: "#16161a", metalness: 0.95, roughness: 0.3, clearcoat: 0.7, envMapIntensity: 1.2 }),
     []
   );
   const collarMat = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#9aa0ab", metalness: 1, roughness: 0.28, envMapIntensity: 1.1 }),
+    () => new THREE.MeshPhysicalMaterial({ color: "#1c1c21", metalness: 1, roughness: 0.25, clearcoat: 0.6, envMapIntensity: 1.2 }),
     []
   );
   const gripMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#0b0b0f", metalness: 0.3, roughness: 0.78, envMapIntensity: 0.6 }),
+    () => new THREE.MeshStandardMaterial({ map: createGripTexture(), metalness: 0.1, roughness: 0.82, envMapIntensity: 0.5 }),
     []
   );
-  const energyLineMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#4da3ff", ...additive, opacity: 0.8 }), []);
 
   const ribbonMat = useMemo(
     () =>
@@ -237,14 +282,15 @@ export function Blade() {
   useEffect(
     () => () => {
       [bladeGeo, ribbonGeo, guardGeo].forEach((g) => g.dispose());
-      [bladeMat, guardMat, collarMat, gripMat, energyLineMat, ribbonMat, haloMat, coreMat, ...ringMats].forEach((m) => m.dispose());
+      [bladeMat, guardMat, collarMat, gripMat, ribbonMat, haloMat, coreMat, ...ringMats].forEach((m) => m.dispose());
       bladeMat.roughnessMap?.dispose();
+      gripMat.map?.dispose();
     },
-    [bladeGeo, ribbonGeo, guardGeo, bladeMat, guardMat, collarMat, gripMat, energyLineMat, ribbonMat, haloMat, coreMat, ringMats]
+    [bladeGeo, ribbonGeo, guardGeo, bladeMat, guardMat, collarMat, gripMat, ribbonMat, haloMat, coreMat, ringMats]
   );
 
   const target = useMemo(() => emptyKeyframe(), []);
-  const tmp = useMemo(() => ({ v: new THREE.Vector3(), color: new THREE.Color(), dark: new THREE.Color("#121216"), steel: new THREE.Color("#d4d7de") }), []);
+  const tmp = useMemo(() => ({ v: new THREE.Vector3() }), []);
   const spinAngle = useRef(0);
   const first = useRef(true);
 
@@ -280,8 +326,10 @@ export function Blade() {
 
     // Slow spin about the blade's own axis; the Getsuga slash whips it round.
     const slash = live.slash;
-    if (!rm) spinAngle.current += dt * (0.22 + live.surge * 1.2 + slash * 9);
-    s.rotation.y = spinAngle.current + Math.sin(live.time * 0.4) * 0.25;
+    // Mostly face-on so the black blade reads as a silhouette; the Getsuga
+    // slash (and a surge) whip it through full turns.
+    if (!rm) spinAngle.current += dt * (live.surge * 1.2 + slash * 9);
+    s.rotation.y = spinAngle.current + (rm ? 0 : Math.sin(live.time * 0.35) * 0.55);
 
     // Hover: is the pointer near the blade on screen?
     tmp.v.set(0, 0, 0);
@@ -296,13 +344,8 @@ export function Blade() {
     edgeUniforms.uEnergy.value = energy * live.light;
     ribbonMat.uniforms.uEnergy.value = energy * live.light;
 
-    // Black blade in bankai.
-    tmp.color.copy(tmp.steel).lerp(tmp.dark, live.dark);
-    bladeMat.color.copy(tmp.color);
-    bladeMat.envMapIntensity = (0.12 + 1.1 * live.light) * introEase * (1 - live.dark * 0.35);
-    guardMat.envMapIntensity = collarMat.envMapIntensity = bladeMat.envMapIntensity;
-    energyLineMat.color.copy(live.color);
-    energyLineMat.opacity = (0.25 + energy * 0.75) * live.light * introEase;
+    bladeMat.envMapIntensity = (0.2 + 0.85 * live.light) * introEase;
+    guardMat.envMapIntensity = collarMat.envMapIntensity = gripMat.envMapIntensity = bladeMat.envMapIntensity * 0.85;
 
     haloMat.uniforms.uIntensity.value = (0.18 + energy * 0.28) * live.light * introEase;
     (haloMat.uniforms.uColor.value as THREE.Color).copy(live.color).multiplyScalar(0.55);
@@ -328,8 +371,6 @@ export function Blade() {
     }
   });
 
-  const gripRings = [-0.22, -0.42, -0.62, -0.82];
-
   return (
     <>
       <mesh ref={halo} material={haloMat} renderOrder={-1}>
@@ -338,26 +379,22 @@ export function Blade() {
       <group ref={outer}>
         <group ref={spin}>
           {/* model is authored with the guard at y=0; recentre on its length */}
-          <group position={[0, -1.15, 0]}>
+          <group position={[0, -1.1, 0]}>
             <mesh geometry={bladeGeo} material={bladeMat} position={[0, 0.1, 0]} />
             <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0.1, 0]} />
             {/* collar */}
-            <mesh material={collarMat} position={[-0.01, 0.12, 0]}>
-              <boxGeometry args={[0.32, 0.14, 0.095]} />
+            <mesh material={collarMat} position={[-0.01, 0.11, 0]}>
+              <boxGeometry args={[0.3, 0.12, 0.1]} />
             </mesh>
             <mesh geometry={guardGeo} material={guardMat} />
-            {/* grip */}
-            <mesh material={gripMat} position={[0, -0.55, 0]}>
-              <cylinderGeometry args={[0.068, 0.074, 1.0, 24]} />
+            {/* grip: black cord over red diamonds */}
+            <mesh material={gripMat} position={[0, -0.7, 0]}>
+              <cylinderGeometry args={[0.07, 0.075, 1.3, 32, 1]} />
             </mesh>
-            {gripRings.map((y) => (
-              <mesh key={y} material={energyLineMat} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.074, 0.0045, 6, 40]} />
-              </mesh>
-            ))}
-            <mesh material={guardMat} position={[0, -1.08, 0]}>
-              <cylinderGeometry args={[0.08, 0.07, 0.08, 24]} />
+            <mesh material={guardMat} position={[0, -1.38, 0]}>
+              <cylinderGeometry args={[0.078, 0.072, 0.07, 24]} />
             </mesh>
+            <object3D ref={pommel} position={[0, -1.42, 0]} />
             {/* energy core at the guard */}
             <mesh material={coreMat}>
               <planeGeometry args={[0.9, 0.9]} />
@@ -373,6 +410,7 @@ export function Blade() {
         </group>
       </group>
       <Sparks outer={outer} />
+      <Chain anchor={pommel} outer={outer} />
     </>
   );
 }
@@ -390,7 +428,7 @@ const sparkVertex = /* glsl */ `
     float h = mod(aOffset + uTime * 0.35 * aData.z, 1.0);
     float ang = aData.x + uTime * (0.4 + aData.z * 0.6);
     float r = aData.y * (0.6 + h * 0.8);
-    vec3 p = vec3(cos(ang) * r, -1.2 + h * ${(BLADE_LENGTH + 0.1).toFixed(2)}, sin(ang) * r);
+    vec3 p = vec3(cos(ang) * r, -1.0 + h * ${(BLADE_LENGTH - 0.1).toFixed(2)}, sin(ang) * r);
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = (1.4 + aData.z * 1.6) * uPixelRatio * (8.0 / -mv.z);
@@ -456,3 +494,103 @@ function Sparks({ outer }: { outer: React.RefObject<THREE.Group | null> }) {
 }
 
 export { edgeUniforms };
+
+/* ─────────── Chain: a verlet rope hanging from the pommel ─────────── */
+
+const LINKS = 18;
+const LINK_LEN = 0.05;
+
+function Chain({ anchor, outer }: { anchor: React.RefObject<THREE.Object3D | null>; outer: React.RefObject<THREE.Group | null> }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const sim = useMemo(
+    () => ({
+      p: Array.from({ length: LINKS + 1 }, () => new THREE.Vector3()),
+      prev: Array.from({ length: LINKS + 1 }, () => new THREE.Vector3()),
+      ready: false,
+      a: new THREE.Vector3(),
+      dir: new THREE.Vector3(),
+      mid: new THREE.Vector3(),
+      q: new THREE.Quaternion(),
+      roll: new THREE.Quaternion(),
+      m: new THREE.Matrix4(),
+      s: new THREE.Vector3(),
+      x: new THREE.Vector3(1, 0, 0),
+    }),
+    []
+  );
+  const material = useMemo(
+    () => new THREE.MeshPhysicalMaterial({ color: "#1a1a1f", metalness: 1, roughness: 0.3, clearcoat: 0.5, envMapIntensity: 1.3 }),
+    []
+  );
+  useEffect(() => () => material.dispose(), [material]);
+
+  useFrame((_, dtRaw) => {
+    const a = anchor.current;
+    const o = outer.current;
+    const im = mesh.current;
+    if (!a || !o || !im) return;
+    const dt = Math.min(dtRaw, 1 / 30);
+    const scale = o.scale.x;
+    const seg = LINK_LEN * scale;
+    a.getWorldPosition(sim.a);
+    const { p, prev } = sim;
+
+    if (!sim.ready) {
+      for (let i = 0; i <= LINKS; i++) {
+        p[i].set(sim.a.x, sim.a.y - i * seg, sim.a.z);
+        prev[i].copy(p[i]);
+      }
+      sim.ready = true;
+    }
+
+    // integrate
+    const g = -26 * scale * dt * dt;
+    for (let i = 1; i <= LINKS; i++) {
+      const cur = p[i];
+      const vx = (cur.x - prev[i].x) * 0.985;
+      const vy = (cur.y - prev[i].y) * 0.985;
+      const vz = (cur.z - prev[i].z) * 0.985;
+      prev[i].copy(cur);
+      cur.x += vx;
+      cur.y += vy + g;
+      cur.z += vz;
+    }
+    // constraints
+    p[0].copy(sim.a);
+    for (let it = 0; it < 14; it++) {
+      p[0].copy(sim.a);
+      for (let i = 0; i < LINKS; i++) {
+        const A = p[i];
+        const B = p[i + 1];
+        sim.dir.subVectors(B, A);
+        const d = sim.dir.length() || 1e-6;
+        const diff = (d - seg) / d;
+        if (i === 0) B.addScaledVector(sim.dir, -diff);
+        else {
+          A.addScaledVector(sim.dir, diff * 0.5);
+          B.addScaledVector(sim.dir, -diff * 0.5);
+        }
+      }
+    }
+
+    // place links: alternate each link's roll by 90° like a real chain
+    for (let i = 0; i < LINKS; i++) {
+      sim.dir.subVectors(p[i + 1], p[i]).normalize();
+      sim.mid.addVectors(p[i], p[i + 1]).multiplyScalar(0.5);
+      sim.q.setFromUnitVectors(sim.x, sim.dir);
+      sim.roll.setFromAxisAngle(sim.x, i % 2 ? Math.PI / 2 : 0);
+      sim.q.multiply(sim.roll);
+      sim.s.set(scale * 1.35, scale, scale);
+      sim.m.compose(sim.mid, sim.q, sim.s);
+      im.setMatrixAt(i, sim.m);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    material.envMapIntensity = 1.3 * live.intro * (0.4 + 0.6 * live.light);
+  });
+
+  return (
+    <instancedMesh ref={mesh} args={[undefined, material, LINKS]} frustumCulled={false}>
+      <torusGeometry args={[0.02, 0.0055, 6, 14]} />
+    </instancedMesh>
+  );
+}

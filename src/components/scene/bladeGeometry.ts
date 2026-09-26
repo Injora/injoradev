@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /**
  * Procedural blade geometry.
@@ -13,22 +14,33 @@ import * as THREE from "three";
  * energy line in the material shader.
  */
 
-export const BLADE_LENGTH = 3.4;
-const BASE_WIDTH = 0.3;
-const SORI = 0.14; // curvature
-const KISSAKI = 0.9; // where the tip begins
-const RIDGE = 0.28; // shinogi position across the width
+export const BLADE_LENGTH = 3.6;
+const SORI = 0.3; // curvature
+const KISSAKI = 0.86; // where the sweeping point begins
+const RIDGE = 0.3; // shinogi position across the width
+const NOTCH_AT = 0.785; // stepped notch on the spine near the tip
+const NOTCH_DEPTH = 0.1;
+
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
 
 function frame(u: number) {
   const y = u * BLADE_LENGTH;
   const center = -SORI * u * u;
-  let w = BASE_WIDTH * (1 - 0.28 * u);
+  // widens slightly toward the tip, like a cleaver-weighted blade
+  let w = 0.31 + 0.06 * u;
   let spine = center - w / 2;
-  let thick = 0.075 * (1 - 0.45 * u);
+  // the step: spine jumps toward the edge, then runs on to the point
+  const notch = smoothstep(NOTCH_AT, NOTCH_AT + 0.006, u) * NOTCH_DEPTH;
+  spine += notch;
+  w -= notch;
+  let thick = 0.08 * (1 - 0.4 * u) * (1 - notch * 2);
   if (u > KISSAKI) {
     const t = (u - KISSAKI) / (1 - KISSAKI);
     const f = Math.sqrt(Math.max(0, 1 - t * t));
-    spine += w * 0.22 * t * t;
+    spine += w * 0.3 * t * t;
     w *= f;
     thick *= 1 - 0.75 * t;
   }
@@ -41,7 +53,7 @@ function halfThickness(v: number, thick: number) {
   return (thick / 2) * (1 - 0.94 * Math.pow(t, 0.85));
 }
 
-export function createBladeGeometry(segU = 140, segV = 10) {
+export function createBladeGeometry(segU = 260, segV = 10) {
   const pos: number[] = [];
   const uv: number[] = [];
   const edge: number[] = [];
@@ -146,45 +158,44 @@ export function createEdgeRibbon(seg = 120, width = 0.32) {
   return g;
 }
 
-/** Guard (tsuba) with two crescent cut-outs — a quiet nod to the Getsuga. */
+/**
+ * Guard: a small hub with four hooked arms turning the same way — an
+ * original take on the swirling guard of the reference blade.
+ */
 export function createGuardGeometry() {
-  const r = 0.34;
-  const shape = new THREE.Shape();
-  shape.absarc(0, 0, r, 0, Math.PI * 2, false);
-
-  // Region inside circle C1 and outside a right-shifted circle C2.
-  const crescent = (dir: 1 | -1) => {
-    const cx = 0.19;
-    const cr = 0.095;
-    const a = 0.06;
-    const c2 = cx + a;
-    const R = Math.sqrt(a * a + cr * cr);
-    const n = 28;
-    const pts: THREE.Vector2[] = [];
-    for (let i = 0; i <= n; i++) {
-      const ang = Math.PI / 2 + (Math.PI * i) / n;
-      pts.push(new THREE.Vector2(cx + Math.cos(ang) * cr, Math.sin(ang) * cr));
-    }
-    const from = Math.atan2(-cr, -a) + Math.PI * 2;
-    const to = Math.atan2(cr, -a);
-    for (let i = 1; i < n; i++) {
-      const ang = from + (to - from) * (i / n);
-      pts.push(new THREE.Vector2(c2 + Math.cos(ang) * R, Math.sin(ang) * R));
-    }
-    if (dir === -1) pts.forEach((p) => p.set(-p.x, p.y));
-    return new THREE.Path(pts);
-  };
-  shape.holes.push(crescent(1), crescent(-1));
-
-  const g = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.05,
+  const opts = {
+    depth: 0.045,
     bevelEnabled: true,
-    bevelThickness: 0.014,
-    bevelSize: 0.012,
-    bevelSegments: 3,
-    curveSegments: 48,
-  });
-  g.translate(0, 0, -0.025);
-  g.rotateX(-Math.PI / 2);
-  return g;
+    bevelThickness: 0.01,
+    bevelSize: 0.008,
+    bevelSegments: 2,
+    curveSegments: 32,
+  };
+  const parts: THREE.BufferGeometry[] = [];
+
+  const hub = new THREE.Shape();
+  hub.absarc(0, 0, 0.1, 0, Math.PI * 2, false);
+  parts.push(new THREE.ExtrudeGeometry(hub, opts));
+
+  const k = 0.78;
+  const arm = [
+    [0.07, -0.028],
+    [0.19, -0.028],
+    [0.19, 0.085],
+    [0.235, 0.15],
+    [0.15, 0.105],
+    [0.15, 0.028],
+    [0.07, 0.028],
+  ].map(([x, y]) => new THREE.Vector2(x * k, y * k));
+  for (let i = 0; i < 4; i++) {
+    const g = new THREE.ExtrudeGeometry(new THREE.Shape(arm), opts);
+    g.rotateZ((i * Math.PI) / 2);
+    parts.push(g);
+  }
+  const merged = mergeGeometries(parts)!;
+  parts.forEach((g) => g.dispose());
+  merged.translate(0, 0, -0.0225);
+  merged.rotateX(-Math.PI / 2);
+  merged.computeVertexNormals();
+  return merged;
 }

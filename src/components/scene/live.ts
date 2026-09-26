@@ -25,4 +25,6 @@ export const COLORS = {
   ice: new THREE.Color("#cfe6ff"),
   red: new THREE.Color("#ff1f3d"),
   silver: new THREE.Color("#c9ccd3"),
+  crimson: new THREE.Color("#ff2338"),
+  hot: new THREE.Color("#ffb3a0"),
 };
