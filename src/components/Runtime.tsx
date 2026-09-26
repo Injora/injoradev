@@ -97,6 +97,8 @@ export function Runtime() {
         return;
       }
       store.lane = computeLane(window.innerWidth, window.innerHeight, store.bladeWidthPx);
+      // The fall begins wherever the hero's "O" sits at the top of the page.
+      if (store.lane.cy !== undefined && window.scrollY < 40) store.fallStart = store.lane.cy / window.innerHeight;
       store.laneReady = true;
       if (debug) {
         debug.canvas.width = innerWidth;

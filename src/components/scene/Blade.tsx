@@ -106,7 +106,6 @@ const edgeUniforms = {
 
 const shatterUniforms = {
   uScatter: { value: 0 },
-  uScrollSpin: { value: 0 },
 };
 
 const ROTATE_GLSL = /* glsl */ `
@@ -135,7 +134,6 @@ function useBladeMaterial() {
           "#include <common>",
           `#include <common>
           uniform float uScatter;
-          uniform float uScrollSpin;
           uniform float uTime;
           attribute float aEdge;
           attribute float aLen;
@@ -152,7 +150,7 @@ function useBladeMaterial() {
           "#include <beginnormal_vertex>",
           `#include <beginnormal_vertex>
           vec3 shAxis = normalize(vec3(aShardDir.y, -aShardDir.x, aShardDir.z + 0.3));
-          float shAng = uScatter * (1.8 + aShardSeed * 3.5 + uScrollSpin * (aShardSeed - 0.5));
+          float shAng = uScatter * (4.0 + aShardSeed * 8.0);
           objectNormal = rotateAxis(objectNormal, shAxis, shAng);`
         )
         // …and drifts away from where it was, hovering while shattered.
@@ -163,8 +161,10 @@ function useBladeMaterial() {
           vLen = aLen;
           vScatter = uScatter;
           vec3 local = rotateAxis(transformed - aShardCenter, shAxis, shAng);
-          vec3 drift = vec3(sin(uTime * 0.5 + aShardSeed * 40.0), cos(uTime * 0.4 + aShardSeed * 25.0), sin(uTime * 0.3 + aShardSeed * 9.0)) * 0.12;
-          transformed = aShardCenter + local + (aShardDir * (1.4 + aShardSeed * 1.6) + drift) * uScatter;`
+          // burst: every shard is flung well past the edge of the screen,
+          // arcing toward the camera; reassembly runs the same path home
+          vec3 fling = aShardDir * (9.0 + aShardSeed * 8.0) + vec3(0.0, 0.0, 2.5 + aShardSeed * 3.0);
+          transformed = aShardCenter + local + fling * uScatter;`
         );
       shader.fragmentShader = shader.fragmentShader
         .replace(
@@ -337,6 +337,8 @@ export function Blade() {
   const tmp = useMemo(() => ({ v: new THREE.Vector3() }), []);
   const spinAngle = useRef(0);
   const first = useRef(true);
+  const burstT = useRef(0);
+  const bladeMesh = useRef<THREE.Mesh>(null);
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 1 / 20);
@@ -354,23 +356,30 @@ export function Blade() {
       const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
       return t * t * (3 - 2 * t);
     };
-    // shards fly apart with the shatter and come home with the reunion
-    const scatter = shatter * (1 - smooth(0.2, 1, reunite));
+    // The burst is timed (≈1.1s), not scrubbed, so it's violent however slowly
+    // you scroll — but it still reverses if you scroll back above the trigger.
+    const armed = store.shatter > (burstT.current > 0.5 ? 0.2 : 0.4);
+    burstT.current = rm ? (armed ? 1 : 0) : Math.min(1, Math.max(0, burstT.current + (armed ? dt : -dt) / 1.1));
+    const burst = 1 - Math.pow(1 - burstT.current, 3);
+    // pieces fly in from off-screen with the reunion
+    const scatter = burst * (1 - smooth(0.15, 1, reunite));
     // the formation turns horizontal while it is still in pieces
     const turn = smooth(0, 0.75, reunite);
+    // once the shards are off-screen, the (invisible) formation relocates
+    // to where it will reassemble
+    const relocate = Math.max(smooth(0.8, 1, burst), turn);
 
     const fallLen = H * (store.isMobile ? 0.6 : 0.78);
     const finalLen = Math.min(W * 0.66, H * 1.1);
     const lenPx = fallLen + (finalLen - fallLen) * turn;
     store.bladeWidthPx = fallLen * 0.12;
 
-    const lane = store.laneReady ? store.lane.cx : W * 0.72;
-    const fallY = H * (0.42 + 0.16 * store.fall) + (rm ? 0 : Math.sin(live.time * 0.6) * H * 0.008);
-    const cxPx = lane + (W / 2 - lane) * shatter;
+    const lane = store.laneReady ? store.lane.cx : W / 2;
+    const start = store.fallStart;
+    const fallY = H * (start + (Math.max(start, 0.56) - start) * store.fall) + (rm ? 0 : Math.sin(live.time * 0.6) * H * 0.006);
     const finaleY = store.finaleY || H * 0.44;
-    // hover mid-screen while shattered; settle into the clear band to reunite
-    const shardY = H * 0.44 + (finaleY - H * 0.44) * turn;
-    const cyPx = fallY + (shardY - fallY) * shatter;
+    const cxPx = lane + (W / 2 - lane) * relocate;
+    const cyPx = fallY + (finaleY - fallY) * relocate;
 
     // viewport px → world, at the blade's depth
     const cam = camera as THREE.PerspectiveCamera;
@@ -408,11 +417,12 @@ export function Blade() {
 
     // hilt drifts off on its own while the blade is in pieces
     if (hilt.current) {
-      hilt.current.position.set(0.12 * scatter, -0.25 * scatter, 0);
-      hilt.current.rotation.set(0, 0, 0.35 * scatter);
+      // the hilt is flung off-screen with the shards and flies home with them
+      const f = scatter * scatter;
+      hilt.current.position.set(-6 * f, -9 * f, 3 * f);
+      hilt.current.rotation.set(2.2 * f, 0.8 * f, 4 * f);
     }
     shatterUniforms.uScatter.value = scatter;
-    shatterUniforms.uScrollSpin.value = store.scroll * 14;
 
     // presence: ghost the falling blade when no clear lane exists
     const ghost = shatter < 0.05 && store.laneReady && !store.lane.clear;
@@ -429,12 +439,12 @@ export function Blade() {
       }
       m.opacity = opacity;
     };
-    // shards drift behind the rest of the page, so keep them quiet
-    fade(bladeMat, presence * (1 - 0.55 * scatter));
-    const hiltOpacity = presence * (1 - smooth(0.05, 0.6, scatter));
-    fade(brassMat, hiltOpacity);
-    fade(gripMat, hiltOpacity);
-    if (hilt.current) hilt.current.visible = hiltOpacity > 0.01;
+    fade(bladeMat, presence);
+    // fully burst: nothing on screen, skip drawing it
+    if (bladeMesh.current) bladeMesh.current.visible = scatter < 0.985;
+    fade(brassMat, presence);
+    fade(gripMat, presence);
+    if (hilt.current) hilt.current.visible = scatter < 0.985;
 
     // hover: is the pointer near the blade on screen?
     tmp.v.set(0, 0, 0);
@@ -451,9 +461,10 @@ export function Blade() {
     bladeMat.envMapIntensity = (0.35 + 1.0 * live.light) * introEase;
     brassMat.envMapIntensity = gripMat.envMapIntensity = bladeMat.envMapIntensity * 0.9;
 
-    haloMat.uniforms.uIntensity.value = (0.16 + energy * 0.25 + scatter * 0.15) * live.light * introEase * presence;
+    const flash = 4 * burst * (1 - burst) * (1 - turn);
+    haloMat.uniforms.uIntensity.value = ((0.16 + energy * 0.25) * (1 - scatter) + flash * 0.9) * live.light * introEase * presence;
     (haloMat.uniforms.uColor.value as THREE.Color).copy(live.color).multiplyScalar(0.5);
-    coreMat.uniforms.uIntensity.value = (0.25 + energy * 0.6) * introEase * presence * (1 - scatter);
+    coreMat.uniforms.uIntensity.value = ((0.25 + energy * 0.6) * (1 - scatter) + flash * 1.5) * introEase * presence;
     if (halo.current) {
       halo.current.position.set(g.position.x, g.position.y, g.position.z - 1.2);
       halo.current.quaternion.copy(camera.quaternion);
@@ -469,7 +480,7 @@ export function Blade() {
         <group ref={spin}>
           {/* authored with the guard at y=0; recentre on the full length */}
           <group position={[0, -1.2, 0]}>
-            <mesh geometry={bladeGeo} material={bladeMat} position={[0, 0.1, 0]} frustumCulled={false} />
+            <mesh ref={bladeMesh} geometry={bladeGeo} material={bladeMat} position={[0, 0.1, 0]} frustumCulled={false} />
             <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0.1, 0]} />
             <group ref={hilt}>
               {/* habaki */}

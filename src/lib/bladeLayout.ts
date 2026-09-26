@@ -13,6 +13,8 @@ export type BladeLane = {
   cx: number;
   /** false → no clear lane; the scene ghosts the blade */
   clear: boolean;
+  /** slot centre y (px), when a section art-directs the position */
+  cy?: number;
   score?: number;
 };
 
@@ -71,7 +73,7 @@ function slotLane(vh: number): BladeLane | null {
   for (const el of document.querySelectorAll<HTMLElement>("[data-blade-slot]")) {
     const r = el.getBoundingClientRect();
     const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0)) / Math.max(1, r.height);
-    if (r.width > 2 && visible > 0.55) return { cx: r.left + r.width / 2, clear: true };
+    if (r.width > 2 && visible > 0.55) return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, clear: true };
   }
   return null;
 }

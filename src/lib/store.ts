@@ -40,6 +40,8 @@ export const store = {
    *   reunite  0→1  at the very bottom, the shards rejoin — horizontally
    */
   fall: 0,
+  /** where the fall starts, as a fraction of viewport height (the hero's "O") */
+  fallStart: 0.5,
   shatter: 0,
   reunite: 0,
   /** viewport y (px) of the clear band where the blade reunites */

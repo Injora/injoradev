@@ -55,8 +55,6 @@ export function Hero() {
       )}
 
       <motion.div style={{ scale, opacity, filter: blur, y: lift }} className="sticky top-0 flex h-svh flex-col justify-between px-[var(--gutter)] pb-8 pt-28 md:pb-10 md:pt-32">
-        {/* art-directed: the blade cuts diagonally behind the name */}
-        <div aria-hidden data-blade-slot data-blade-pose="diagonal" className="pointer-events-none absolute bottom-[14%] right-[6%] top-[14%] w-[44%] md:right-[8%] md:w-[42%]" />
         {/* top meta */}
         <motion.div style={{ x: metaX, y: metaY }} className="flex items-start justify-between gap-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 * d, duration: 1.2 }} className="space-y-1.5">
@@ -79,6 +77,8 @@ export function Hero() {
               {NAME.map((ch, i) => (
                 <motion.span
                   key={i}
+                  // the katana starts its fall through the "O"
+                  data-blade-slot={ch === "O" ? "" : undefined}
                   className="metal-text inline-block"
                   initial={{ y: "110%", opacity: 0, filter: "blur(12px)" }}
                   animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
