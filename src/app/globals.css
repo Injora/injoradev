@@ -1,26 +1,238 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+@theme {
+  --color-void: #030304;
+  --color-obsidian: #08080b;
+  --color-charcoal: #111116;
+  --color-graphite: #1b1c22;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+  --color-silver: #c9ccd3;
+  --color-mist: #8a8e98;
+  --color-dim: #5d616b;
+  --color-snow: #f2f3f6;
+  --color-volt: #4da3ff;
+  --color-ice: #cfe6ff;
+  --color-ember: #e21d35;
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-jp: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "Noto Serif JP", serif;
+
+  --ease-cinema: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-blade: cubic-bezier(0.7, 0, 0.2, 1);
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --gutter: clamp(1rem, 4vw, 3.5rem);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-void);
+  -webkit-text-size-adjust: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2b31 transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgb(77 163 255 / 0.07), transparent 60%),
+    var(--color-void);
+  color: var(--color-silver);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
 }
+
+::selection {
+  background: rgb(77 163 255 / 0.35);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--color-volt);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Custom cursor hides the native one only when it is active (fine pointers). */
+html.has-cursor,
+html.has-cursor * {
+  cursor: none !important;
+}
+
+/* ───────── Type ───────── */
+
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 125;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.86;
+}
+
+.display-tight {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 112;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-mist);
+}
+
+.jp {
+  font-family: var(--font-jp);
+  font-weight: 400;
+}
+
+/* brushed-metal fill for the big name */
+.metal-text {
+  background:
+    linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.55) 45%, transparent 60%) no-repeat,
+    linear-gradient(180deg, #ffffff 0%, #d9dce3 40%, #8d929c 75%, #c6c9d0 100%);
+  background-size: 250% 100%, 100% 100%;
+  background-position: 180% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 7s var(--ease-cinema) 2.6s infinite;
+}
+
+@keyframes sheen {
+  0% { background-position: 180% 0, 0 0; }
+  35%, 100% { background-position: -80% 0, 0 0; }
+}
+
+.outline-text {
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(255 255 255 / 0.22);
+}
+
+/* ───────── Surfaces ───────── */
+
+.glass {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015)),
+    rgb(8 8 11 / 0.72);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 30px 80px -30px rgb(0 0 0 / 0.8);
+}
+
+.hairline {
+  background: linear-gradient(90deg, transparent, var(--color-line-strong), transparent);
+  height: 1px;
+}
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 1.2s steps(6) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ───────── Links ───────── */
+
+/* energy underline that runs left → right on hover */
+.energy-link {
+  position: relative;
+  background-image: linear-gradient(90deg, var(--color-volt), var(--color-ice));
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 0.6s var(--ease-cinema), color 0.3s;
+}
+.energy-link:hover,
+.energy-link:focus-visible {
+  background-size: 100% 1px;
+  color: var(--color-snow);
+}
+
+/* outgoing arrow nudges up-right */
+.out-arrow {
+  display: inline-block;
+  transition: transform 0.45s var(--ease-cinema);
+}
+a:hover .out-arrow,
+a:focus-visible .out-arrow {
+  transform: translate(3px, -3px);
+}
+
+/* ───────── Misc ───────── */
+
+.mask-fade-x {
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.scroll-line {
+  animation: scrollLine 2.4s var(--ease-blade) infinite;
+}
+@keyframes scrollLine {
+  0% { transform: scaleY(0); transform-origin: top; }
+  45% { transform: scaleY(1); transform-origin: top; }
+  55% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  background: var(--color-snow);
+  color: #000;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  transition: top 0.3s;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .grain::after {
+    display: none;
+  }
+}
+
+/* idle drift for constellation nodes — uses `translate` so it composes with motion's transforms */
+@keyframes float-0 { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+@keyframes float-1 { 0%, 100% { translate: 0 0; } 50% { translate: 5px 4px; } }
+@keyframes float-2 { 0%, 100% { translate: 0 0; } 50% { translate: -4px 5px; } }

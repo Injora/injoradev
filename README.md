@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# injoradev.in
 
-## Getting Started
-
-First, run the development server:
+Cinematic portfolio for **Injora** — Full-Stack Developer · Open-Source Contributor.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · React Three Fiber / Three.js · Motion · Lenis
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Architecture
 
-## Learn More
+| Path | What |
+| --- | --- |
+| `src/content/profile.ts` | **All copy and data.** Every entry is traced to the GitHub profile README, a repo, or a PR. |
+| `src/content/contributions.ts` | Contribution calendar snapshot — generated, never hand-edited. |
+| `src/components/scene/` | The WebGL layer: procedural blade (`bladeGeometry.ts`), particle tunnel, scroll keyframes. Lazy-loaded chunk. |
+| `src/components/sections/` | Page sections (Hero → About → Stack → Work → Open Source → Journey → Contact). |
+| `src/components/mockups/` | Animated "interface studies" for each flagship project (pause when offscreen). |
+| `src/lib/store.ts` | Mutable store shared by the DOM and the render loop — no React re-renders per frame. |
 
-To learn more about Next.js, take a look at the following resources:
+**How the 3D follows the page:** each section carries `data-scene`. `Runtime.tsx` turns scroll position into a continuous
+section index; `scene/keyframes.ts` defines the blade's pose/energy per section (sealed → activated → intensified → calm)
+and the scene blends between them.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Performance:** Three.js ships in its own chunk after hydration; DPR is capped and drops automatically if frame time
+suffers; mobile gets ~70% fewer particles; no WebGL / Save-Data / very low-end devices get a static SVG fallback;
+`prefers-reduced-motion` disables smooth scroll and renders the scene on demand.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Keeping it truthful
 
-## Deploy on Vercel
+```bash
+scripts/snapshot-contributions.sh   # refresh calendar + counts from the GitHub API
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Then update `ossStats` and PR states (`merged` / `open`) in `profile.ts`. Don't add anything that can't be linked to a source.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Easter eggs
+
+Hidden. Check the console.
