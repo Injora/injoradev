@@ -1,35 +1,25 @@
 /**
- * Layout-aware blade placement.
+ * Layout-aware lane for the falling blade.
  *
- * Rather than hardcoding where the blade sits in each section, we read the
- * page: visible content is rasterised onto a coarse occupancy grid of the
- * viewport, the maximal empty rectangles are enumerated, and the blade takes
- * whichever pose (horizontal / vertical / diagonal) lets it be largest without
- * covering anything. If nothing fits, it retreats into the background.
- *
- * Output is in viewport pixels; the scene converts it to world space every
- * frame, so resizes and camera changes are handled for free.
+ * The blade falls vertically through the page. To keep it off the content,
+ * visible elements are rasterised onto a coarse occupancy grid of the
+ * viewport and we pick the column band where a vertical blade has the longest
+ * clear run. If no lane is clear enough the blade keeps falling but fades to a
+ * background ghost. Sections can art-direct with `data-blade-slot`.
  */
 
-export type BladeTarget = {
-  /** composition score used to compare candidate spots */
-  score?: number;
+export type BladeLane = {
+  /** lane centre, viewport px */
   cx: number;
-  cy: number;
-  /** blade length in px */
-  length: number;
-  /** rotation about the view axis; 0 = tip up, −π/2 = tip right */
-  angle: number;
-  ambient: boolean;
+  /** false → no clear lane; the scene ghosts the blade */
+  clear: boolean;
+  score?: number;
 };
 
-const COLS = 36;
-const ROWS = 20;
-const PAD = 14;
-/** silhouette thickness ÷ length (blade + curve + guard + hanging chain) */
-const THICKNESS = 0.2;
-/** the floating nav owns the top of the viewport */
-const NAV_BAND = 96;
+const COLS = 48;
+const ROWS = 24;
+const PAD = 10;
+const NAV_BAND = 90;
 
 const OCCLUDERS = [
   "main h1:not([data-blade='ignore'])",
@@ -42,13 +32,10 @@ const OCCLUDERS = [
   "main pre",
   "main figure",
   "main [data-occlude]",
-  "header nav",
 ].join(",");
 
-type Rect = { c0: number; r0: number; c1: number; r1: number }; // inclusive cells
-
 let grid = new Uint8Array(COLS * ROWS);
-let current: (BladeTarget & { rect: Rect | null }) | null = null;
+let current: (BladeLane & { c0: number; c1: number }) | null = null;
 
 function rasterise(vw: number, vh: number) {
   grid = new Uint8Array(COLS * ROWS);
@@ -56,8 +43,7 @@ function rasterise(vw: number, vh: number) {
   const ch = vh / ROWS;
   const navRows = Math.ceil(NAV_BAND / ch);
   for (let y = 0; y < navRows; y++) for (let x = 0; x < COLS; x++) grid[y * COLS + x] = 1;
-  const els = document.querySelectorAll<HTMLElement>(OCCLUDERS);
-  for (const el of els) {
+  for (const el of document.querySelectorAll<HTMLElement>(OCCLUDERS)) {
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;
     if (r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) continue;
@@ -69,120 +55,94 @@ function rasterise(vw: number, vh: number) {
   }
 }
 
-/** Largest blade that fits a w×h box, and the pose that achieves it. */
-function fit(w: number, h: number): { length: number; angle: number } {
-  const horizontal = Math.min(w, h / THICKNESS);
-  const vertical = Math.min(h, w / THICKNESS);
-  // a diagonal needs a roughly square-ish box to be worth it
-  const lo = Math.min(w, h);
-  const hi = Math.max(w, h);
-  const diagonal = lo > hi * 0.35 ? Math.hypot(w, h) * 0.86 - lo * THICKNESS : 0;
-  // Slight preference for the diagonal — it's the most cinematic silhouette.
-  if (diagonal * 1.05 >= horizontal && diagonal * 1.05 >= vertical) return { length: diagonal, angle: -Math.atan2(w, h) };
-  if (horizontal >= vertical) return { length: horizontal, angle: -Math.PI / 2 };
-  return { length: vertical, angle: -0.06 };
-}
-
-function rectFree(rect: Rect) {
-  let blocked = 0;
-  let total = 0;
-  for (let y = rect.r0; y <= rect.r1; y++)
-    for (let x = rect.c0; x <= rect.c1; x++) {
-      total++;
-      blocked += grid[y * COLS + x];
-    }
-  return 1 - blocked / Math.max(1, total);
-}
-
-function toTarget(rect: Rect, vw: number, vh: number): BladeTarget & { rect: Rect } {
-  const cw = vw / COLS;
-  const ch = vh / ROWS;
-  const w = (rect.c1 - rect.c0 + 1) * cw;
-  const h = (rect.r1 - rect.r0 + 1) * ch;
-  const { length, angle } = fit(w, h);
-  const cx = (rect.c0 * cw + (rect.c1 + 1) * cw) / 2;
-  const cy = (rect.r0 * ch + (rect.r1 + 1) * ch) / 2;
-  const capped = Math.min(length, vh * 1.15);
-  // Composition: a blade with room to breathe near the middle of the frame
-  // beats a longer one squeezed into a letterbox at the edge.
-  const centred = 1 - 0.45 * Math.abs(cy - vh / 2) / (vh / 2);
-  const breathing = Math.min(1, h / (vh * 0.3));
-  const score = capped * centred * (0.55 + 0.45 * breathing);
-  return { rect, cx, cy, length: capped, angle, ambient: false, score };
-}
-
-/** Enumerate maximal empty rectangles (histogram method) and keep the best fit. */
-function bestRect(vw: number, vh: number) {
-  const heights = new Array<number>(COLS).fill(0);
-  let best: (BladeTarget & { rect: Rect }) | null = null;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) heights[c] = grid[r * COLS + c] ? 0 : heights[c] + 1;
-    const stack: number[] = [];
-    for (let c = 0; c <= COLS; c++) {
-      const h = c === COLS ? 0 : heights[c];
-      while (stack.length && heights[stack[stack.length - 1]] >= h) {
-        const top = stack.pop()!;
-        const height = heights[top];
-        if (height === 0) continue;
-        const left = stack.length ? stack[stack.length - 1] + 1 : 0;
-        const cand = toTarget({ c0: left, c1: c - 1, r0: r - height + 1, r1: r }, vw, vh);
-        if (!best || cand.score! > best.score!) best = cand;
-      }
-      stack.push(c);
-    }
+/** Longest run of fully clear rows across columns c0..c1. */
+function clearRun(c0: number, c1: number) {
+  let best = 0;
+  let run = 0;
+  for (let y = 0; y < ROWS; y++) {
+    let free = true;
+    for (let x = c0; x <= c1 && free; x++) if (grid[y * COLS + x]) free = false;
+    run = free ? run + 1 : 0;
+    best = Math.max(best, run);
   }
-  return best;
+  return best / ROWS;
 }
 
-/**
- * Art direction wins over the solver: a visible element marked
- * `data-blade-slot` pins the blade to it (optionally `data-blade-pose`).
- */
-function slotTarget(vw: number, vh: number): BladeTarget | null {
+function slotLane(vh: number): BladeLane | null {
   for (const el of document.querySelectorAll<HTMLElement>("[data-blade-slot]")) {
     const r = el.getBoundingClientRect();
     const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0)) / Math.max(1, r.height);
-    if (r.width < 2 || visible < 0.55) continue;
-    const pose = el.dataset.bladePose;
-    const diagonal = { length: Math.hypot(r.width, r.height) * 0.9, angle: -Math.atan2(r.width, r.height) };
-    const f = pose === "diagonal" ? diagonal : fit(r.width, r.height);
-    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, length: Math.min(f.length, vh * 1.15), angle: f.angle, ambient: false };
+    if (r.width > 2 && visible > 0.55) return { cx: r.left + r.width / 2, clear: true };
   }
   return null;
 }
 
-export function computeBladeTarget(vw: number, vh: number): BladeTarget {
-  const slot = slotTarget(vw, vh);
+/**
+ * @param bladeWidth on-screen width of the vertical blade (px)
+ * @param minRun     fraction of the viewport height that must be clear
+ */
+export function computeLane(vw: number, vh: number, bladeWidth: number, minRun = 0.55): BladeLane {
+  const slot = slotLane(vh);
   if (slot) {
-    current = { ...slot, rect: null };
+    current = null;
     return slot;
   }
   rasterise(vw, vh);
-  const best = bestRect(vw, vh);
-  const minScore = Math.min(vw, vh) * 0.4;
+  const cw = vw / COLS;
+  const band = Math.max(1, Math.ceil(bladeWidth / cw) + 1);
 
-  // Hysteresis: stay put unless our spot gets covered or a much better one opens up.
-  if (current?.rect && !current.ambient) {
-    const stillFree = rectFree(current.rect) > 0.94;
-    const kept = toTarget(current.rect, vw, vh);
-    if (stillFree && (!best || best.score! < kept.score! * 1.3) && kept.score! >= minScore) {
-      current = kept;
+  let best: (BladeLane & { c0: number; c1: number }) | null = null;
+  for (let c0 = 1; c0 + band < COLS - 1; c0++) {
+    const c1 = c0 + band - 1;
+    const run = clearRun(c0, c1);
+    const cx = ((c0 + c1 + 1) / 2) * cw;
+    // prefer longer clear runs; mild pull away from the extreme edges
+    const edge = Math.min(cx, vw - cx) / (vw / 2);
+    const score = run * (0.85 + 0.15 * Math.min(1, edge * 3));
+    if (!best || score > best.score!) best = { cx, clear: run >= minRun, score, c0, c1 };
+  }
+
+  // Hysteresis: keep our lane while it stays clear and nothing much better appears.
+  if (current) {
+    const run = clearRun(current.c0, current.c1);
+    if (run >= minRun && (!best || best.score! < run * 1.25)) {
+      current = { ...current, clear: true, score: run };
       return current;
     }
   }
-
-  if (best && best.score! >= minScore) {
+  if (best?.clear) {
     current = best;
-    return current;
+    return best;
   }
-
-  // Nowhere to stand: retreat into the background, dimmed by the scene.
-  current = { rect: null, cx: vw / 2, cy: vh / 2, length: vh * 0.95, angle: -0.6, ambient: true };
-  return current;
+  // No clear lane: stay where we were (continuity of the fall), ghosted.
+  const cx = current?.cx ?? vw * 0.72;
+  current = null;
+  return { cx, clear: false };
 }
 
-/** Debug overlay: add ?blade-debug to the URL to see the occupancy grid. */
-export function drawDebug(ctx: CanvasRenderingContext2D, vw: number, vh: number, t: BladeTarget) {
+/**
+ * Finale: the tallest clear horizontal band across the middle of the screen,
+ * where the shards reunite as a horizontal blade. Returns its centre (px).
+ */
+export function computeBand(vw: number, vh: number): number {
+  rasterise(vw, vh);
+  const c0 = Math.floor(COLS * 0.1);
+  const c1 = Math.ceil(COLS * 0.9);
+  let best = { run: 0, end: -1 };
+  let run = 0;
+  for (let y = 0; y < ROWS; y++) {
+    let free = true;
+    for (let x = c0; x < c1 && free; x++) if (grid[y * COLS + x]) free = false;
+    run = free ? run + 1 : 0;
+    if (run > best.run) best = { run, end: y };
+  }
+  if (best.run < 2) return vh * 0.44;
+  const ch = vh / ROWS;
+  return (best.end - best.run / 2 + 1) * ch;
+}
+
+/** Debug overlay: add ?blade-debug to the URL. */
+export function drawDebug(ctx: CanvasRenderingContext2D, vw: number, vh: number, lane: BladeLane) {
   const cw = vw / COLS;
   const ch = vh / ROWS;
   ctx.clearRect(0, 0, vw, vh);
@@ -192,19 +152,10 @@ export function drawDebug(ctx: CanvasRenderingContext2D, vw: number, vh: number,
         ctx.fillStyle = "rgba(226,29,53,0.12)";
         ctx.fillRect(x * cw, y * ch, cw - 1, ch - 1);
       }
-  if (current?.rect) {
-    const r = current.rect;
-    ctx.strokeStyle = "rgba(77,163,255,0.9)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(r.c0 * cw, r.r0 * ch, (r.c1 - r.c0 + 1) * cw, (r.r1 - r.r0 + 1) * ch);
-  }
-  ctx.save();
-  ctx.translate(t.cx, t.cy);
-  ctx.rotate(-t.angle);
-  ctx.strokeStyle = t.ambient ? "rgba(255,255,255,0.4)" : "#cfe6ff";
+  ctx.strokeStyle = lane.clear ? "#4da3ff" : "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(0, t.length / 2);
-  ctx.lineTo(0, -t.length / 2);
+  ctx.moveTo(lane.cx, 0);
+  ctx.lineTo(lane.cx, vh);
   ctx.stroke();
-  ctx.restore();
 }

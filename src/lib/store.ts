@@ -5,7 +5,7 @@
  * thing components subscribe to.
  */
 
-import type { BladeTarget } from "./bladeLayout";
+import type { BladeLane } from "./bladeLayout";
 
 export type Mode = "normal" | "bankai" | "surge";
 
@@ -28,9 +28,22 @@ export const store = {
   isMobile: false,
   reducedMotion: false,
   mode: "normal" as Mode,
-  /** where the blade should stand, solved from the page layout (viewport px) */
-  blade: { cx: 0, cy: 0, length: 0, angle: -0.6, ambient: true } as BladeTarget,
-  bladeReady: false,
+  /** the clear vertical lane the blade falls down, solved from the layout */
+  lane: { cx: 0, clear: false } as BladeLane,
+  laneReady: false,
+  /** on-screen width of the falling blade (px), written by the scene for the solver */
+  bladeWidthPx: 60,
+  /**
+   * Kyōka Suigetsu choreography, all scroll-driven (and so reversible):
+   *   fall     0→1  hero … end of journey, the blade sinks through the page
+   *   shatter  0→1  as the journey ends, it breaks into mirror shards
+   *   reunite  0→1  at the very bottom, the shards rejoin — horizontally
+   */
+  fall: 0,
+  shatter: 0,
+  reunite: 0,
+  /** viewport y (px) of the clear band where the blade reunites */
+  finaleY: 0,
   /** timestamp (ms) of the last Getsuga slash, for the scene to react */
   slashAt: -1e9,
 };

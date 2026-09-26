@@ -7,7 +7,6 @@ import { store } from "@/lib/store";
 import { live } from "./live";
 import { seeded } from "./random";
 
-const DEPTH = 60;
 
 const vertex = /* glsl */ `
   uniform float uTime;
@@ -21,19 +20,19 @@ const vertex = /* glsl */ `
   varying float vTint;
   void main() {
     vec3 p = position;
-    // endless tunnel: wrap depth as we travel
-    p.z = mod(p.z + uTravel + uTime * 0.25, ${DEPTH.toFixed(1)}) - ${(DEPTH - 8).toFixed(1)};
+    // the world streams upward past the falling blade
+    p.y = mod(p.y + uTravel + uTime * 0.12 + 12.0, 24.0) - 12.0;
     p.x += sin(uTime * 0.21 + aSeed * 6.283) * 0.25;
-    p.y += cos(uTime * 0.17 + aSeed * 12.1) * 0.25;
+    p.z += cos(uTime * 0.17 + aSeed * 12.1) * 0.25;
     // parallax by depth
-    float depth = clamp((p.z + 52.0) / 60.0, 0.0, 1.0);
+    float depth = clamp((p.z + 30.0) / 35.0, 0.0, 1.0);
     p.xy += uPointer * depth * 0.6;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = aSize * uPixelRatio * (26.0 / -mv.z) * (1.0 + uStretch * depth);
     float twinkle = 0.55 + 0.45 * sin(uTime * (0.6 + aSeed * 1.8) + aSeed * 40.0);
-    float nearFade = smoothstep(7.0, 3.0, p.z);
-    float farFade = smoothstep(-52.0, -30.0, p.z);
+    float nearFade = smoothstep(6.0, 3.0, p.z);
+    float farFade = smoothstep(-32.0, -18.0, p.z);
     vAlpha = twinkle * nearFade * farFade;
     vTint = step(0.86, aSeed);
   }
@@ -62,12 +61,9 @@ export function Particles() {
     const seed = new Float32Array(count);
     const size = new Float32Array(count);
     for (let i = 0; i < count; i++) {
-      // keep a clear corridor around the camera axis so particles don't smear the text
-      const r = 1.2 + Math.pow(rnd(), 0.7) * 13;
-      const a = rnd() * Math.PI * 2;
-      pos[i * 3] = Math.cos(a) * r * 1.3;
-      pos[i * 3 + 1] = Math.sin(a) * r * 0.8;
-      pos[i * 3 + 2] = rnd() * DEPTH;
+      pos[i * 3] = (rnd() - 0.5) * 34;
+      pos[i * 3 + 1] = (rnd() - 0.5) * 24;
+      pos[i * 3 + 2] = -30 + rnd() * 34;
       seed[i] = rnd();
       size[i] = 0.6 + Math.pow(rnd(), 3) * 2.8;
     }

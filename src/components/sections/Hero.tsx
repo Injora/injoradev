@@ -74,7 +74,7 @@ export function Hero() {
 
         {/* title block */}
         <div className="relative">
-          <motion.h1 data-blade="ignore" style={{ x: titleX, y: titleY }} className="display select-none text-[21vw] text-snow md:text-[17.6vw]" aria-label={identity.name}>
+          <motion.h1 data-blade="ignore" style={{ x: titleX, y: titleY }} className="display select-none text-[19vw] text-snow md:text-[17.6vw]" aria-label={identity.name}>
             <span className="flex overflow-hidden pb-[0.04em]" aria-hidden>
               {NAME.map((ch, i) => (
                 <motion.span

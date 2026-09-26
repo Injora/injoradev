@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { useEffect, useState } from "react";
 import { SCENE_ORDER, store } from "@/lib/store";
 import { setLenis } from "@/lib/scroll";
-import { computeBladeTarget, drawDebug } from "@/lib/bladeLayout";
+import { computeBand, computeLane, drawDebug } from "@/lib/bladeLayout";
 import { Cursor } from "./ui/Cursor";
 import { EasterEggs } from "./EasterEggs";
 import { SceneFallback } from "./scene/SceneFallback";
@@ -83,14 +83,19 @@ export function Runtime() {
     }
     const solve = (t: number, force = false) => {
       const calm = Math.abs(store.velocity) < 6;
-      if (!force && (t - lastSolve < (calm ? 250 : 700))) return;
+      if (!force && t - lastSolve < (calm ? 250 : 600)) return;
       lastSolve = t;
-      store.blade = computeBladeTarget(window.innerWidth, window.innerHeight);
-      store.bladeReady = true;
+      // During the finale the blade leaves its lane for the clearest band.
+      if (store.shatter > 0.02) {
+        store.finaleY = computeBand(window.innerWidth, window.innerHeight);
+        return;
+      }
+      store.lane = computeLane(window.innerWidth, window.innerHeight, store.bladeWidthPx);
+      store.laneReady = true;
       if (debug) {
         debug.canvas.width = innerWidth;
         debug.canvas.height = innerHeight;
-        drawDebug(debug, innerWidth, innerHeight, store.blade);
+        drawDebug(debug, innerWidth, innerHeight, store.lane);
       }
     };
     const onResize = () => solve(performance.now(), true);
@@ -114,6 +119,16 @@ export function Runtime() {
         s += Math.min(1, Math.max(0, (vc - (bounds[i] - vh * 0.5)) / vh));
       }
       store.section = s;
+
+      // Kyōka Suigetsu: fall → shatter at the end of the journey → reunite at the bottom.
+      const journeyEnd = bounds[SCENE_ORDER.indexOf("journey")] ?? max;
+      const ease = (x: number) => {
+        const c = Math.min(1, Math.max(0, x));
+        return c * c * (3 - 2 * c);
+      };
+      store.fall = Math.min(1, Math.max(0, y / Math.max(1, journeyEnd - vh * 1.2)));
+      store.shatter = ease((vc - (journeyEnd - vh * 0.55)) / (vh * 0.7));
+      store.reunite = ease((y - (max - vh * 0.9)) / (vh * 0.8));
       solve(t);
       raf = requestAnimationFrame(tick);
     };

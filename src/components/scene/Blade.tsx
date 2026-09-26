@@ -4,12 +4,19 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { store } from "@/lib/store";
-import { createBladeGeometry, createEdgeRibbon, createGuardGeometry, BLADE_LENGTH } from "./bladeGeometry";
-
-/** pommel → tip, plus a little breathing room, in model units */
-const MODEL_LENGTH = 5.4;
+import { createBladeGeometry, createEdgeRibbon, createGuardGeometry, shatterGeometry, BLADE_LENGTH } from "./bladeGeometry";
 import { live } from "./live";
 import { seeded } from "./random";
+
+/**
+ * Kyōka Suigetsu — a polished katana that falls through the page, shatters
+ * like a mirror at the end of the journey, and reunites horizontally at the
+ * very bottom. All of it is driven by scroll (see store.fall / shatter /
+ * reunite), so it plays in reverse when you scroll back up.
+ */
+
+/** pommel → tip in model units */
+const MODEL_LENGTH = 5.2;
 
 /** Procedural scratch/roughness map — fine lines along the length of the blade. */
 function createScratchTexture() {
@@ -47,7 +54,7 @@ function createScratchTexture() {
   return tex;
 }
 
-/** Black cord crossing over red diamonds, drawn once to a canvas. */
+/** Dark teal cord over white diamonds (the classic tsukamaki), drawn once. */
 function createGripTexture() {
   const w = 256;
   const h = 1024;
@@ -55,31 +62,30 @@ function createGripTexture() {
   c.width = w;
   c.height = h;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#0a0a0c";
+  ctx.fillStyle = "#12262d";
   ctx.fillRect(0, 0, w, h);
-  const rows = 11;
+  const rows = 12;
   const step = h / rows;
   for (let i = 0; i < rows; i++) {
     const cy = step * (i + 0.5);
-    // diamonds on the front and back faces of the grip
     for (const cx of [w * 0.25, w * 0.75]) {
-      const g = ctx.createLinearGradient(cx, cy - step * 0.4, cx, cy + step * 0.4);
-      g.addColorStop(0, "#4a060d");
-      g.addColorStop(0.5, "#8e0f1d");
-      g.addColorStop(1, "#40050b");
+      const g = ctx.createLinearGradient(cx - w * 0.08, cy, cx + w * 0.08, cy);
+      g.addColorStop(0, "#bdbab1");
+      g.addColorStop(0.5, "#efece4");
+      g.addColorStop(1, "#aaa79e");
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(cx, cy - step * 0.36);
-      ctx.lineTo(cx + w * 0.085, cy);
-      ctx.lineTo(cx, cy + step * 0.36);
-      ctx.lineTo(cx - w * 0.085, cy);
+      ctx.moveTo(cx, cy - step * 0.34);
+      ctx.lineTo(cx + w * 0.09, cy);
+      ctx.lineTo(cx, cy + step * 0.34);
+      ctx.lineTo(cx - w * 0.09, cy);
       ctx.closePath();
       ctx.fill();
     }
-    // subtle weave highlight on the black cord
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
-    ctx.lineWidth = 2;
-    for (let k = 0; k < 6; k++) {
+    // cord weave highlights
+    ctx.strokeStyle = "rgba(120,190,200,0.10)";
+    ctx.lineWidth = 3;
+    for (let k = 0; k < 7; k++) {
       ctx.beginPath();
       ctx.moveTo(0, cy - step * 0.5 + k * 6);
       ctx.lineTo(w, cy + step * 0.5 - k * 6);
@@ -95,56 +101,96 @@ function createGripTexture() {
 const edgeUniforms = {
   uTime: { value: 0 },
   uEnergy: { value: 0.2 },
-  uColor: { value: new THREE.Color("#ff2338") },
+  uColor: { value: new THREE.Color("#4da3ff") },
 };
+
+const shatterUniforms = {
+  uScatter: { value: 0 },
+};
+
+const ROTATE_GLSL = /* glsl */ `
+  vec3 rotateAxis(vec3 p, vec3 axis, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    return p * c + cross(axis, p) * s + axis * dot(axis, p) * (1.0 - c);
+  }
+`;
 
 function useBladeMaterial() {
   return useMemo(() => {
     const m = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#141418"),
-      metalness: 0.9,
-      roughness: 0.34,
+      color: new THREE.Color("#dfe2e8"),
+      metalness: 1,
+      roughness: 0.16,
       roughnessMap: createScratchTexture(),
-      clearcoat: 0.85,
-      clearcoatRoughness: 0.16,
-      envMapIntensity: 1.4,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.12,
+      envMapIntensity: 1.3,
     });
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, edgeUniforms);
+      Object.assign(shader.uniforms, edgeUniforms, shatterUniforms);
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
-          "#include <common>\nattribute float aEdge;\nattribute float aLen;\nvarying float vEdge;\nvarying float vLen;"
+          `#include <common>
+          uniform float uScatter;
+          uniform float uTime;
+          attribute float aEdge;
+          attribute float aLen;
+          attribute vec3 aShardCenter;
+          attribute vec3 aShardDir;
+          attribute float aShardSeed;
+          varying float vEdge;
+          varying float vLen;
+          varying float vScatter;
+          ${ROTATE_GLSL}`
         )
-        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEdge = aEdge;\nvLen = aLen;");
+        // each shard tumbles about its own axis…
+        .replace(
+          "#include <beginnormal_vertex>",
+          `#include <beginnormal_vertex>
+          vec3 shAxis = normalize(vec3(aShardDir.y, -aShardDir.x, aShardDir.z + 0.3));
+          float shAng = uScatter * (1.8 + aShardSeed * 3.5);
+          objectNormal = rotateAxis(objectNormal, shAxis, shAng);`
+        )
+        // …and drifts away from where it was, hovering while shattered.
+        .replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+          vEdge = aEdge;
+          vLen = aLen;
+          vScatter = uScatter;
+          vec3 local = rotateAxis(transformed - aShardCenter, shAxis, shAng);
+          vec3 drift = vec3(sin(uTime * 0.5 + aShardSeed * 40.0), cos(uTime * 0.4 + aShardSeed * 25.0), sin(uTime * 0.3 + aShardSeed * 9.0)) * 0.12;
+          transformed = aShardCenter + local + (aShardDir * (1.4 + aShardSeed * 1.6) + drift) * uScatter;`
+        );
       shader.fragmentShader = shader.fragmentShader
         .replace(
           "#include <common>",
-          "#include <common>\nuniform float uTime;\nuniform float uEnergy;\nuniform vec3 uColor;\nvarying float vEdge;\nvarying float vLen;"
+          "#include <common>\nuniform float uTime;\nuniform float uEnergy;\nuniform vec3 uColor;\nvarying float vEdge;\nvarying float vLen;\nvarying float vScatter;"
         )
-        // Black blade; only the freshly sharpened edge shows bare steel.
+        // Pronounced wavy hamon, as on the reference blade.
         .replace(
           "#include <color_fragment>",
           `#include <color_fragment>
-          float bevel = smoothstep(0.075, 0.03, vEdge);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.43, 0.46), bevel);
-          float hamon = bevel;`
+          float hamonLine = 0.24 + 0.05 * sin(vLen * 55.0) + 0.025 * sin(vLen * 131.0 + 1.3);
+          float hamon = smoothstep(hamonLine + 0.025, hamonLine - 0.025, vEdge);
+          diffuseColor.rgb = mix(diffuseColor.rgb * 0.82, diffuseColor.rgb * 1.12 + 0.05, hamon);`
         )
         .replace(
           "#include <roughnessmap_fragment>",
           `#include <roughnessmap_fragment>
-          roughnessFactor = mix(roughnessFactor, 0.14, bevel);`
+          roughnessFactor = mix(roughnessFactor * 1.3, roughnessFactor * 0.5, hamon);`
         )
-        // Energy running up the cutting edge.
         .replace(
           "#include <emissivemap_fragment>",
           `#include <emissivemap_fragment>
           float edgeMask = smoothstep(0.1, 0.0, vEdge);
           float flow = 0.5 + 0.5 * sin(vLen * 22.0 - uTime * 3.2);
-          float pulse = 0.55 + 0.45 * flow;
           float baseFade = smoothstep(0.0, 0.1, vLen);
-          totalEmissiveRadiance += uColor * edgeMask * pulse * baseFade * uEnergy * 2.4;
-          totalEmissiveRadiance += uColor * hamon * uEnergy * 0.25;`
+          totalEmissiveRadiance += uColor * edgeMask * (0.55 + 0.45 * flow) * baseFade * uEnergy * 2.0;
+          // shards catch a cold glint while they float
+          totalEmissiveRadiance += vec3(0.55, 0.75, 1.0) * vScatter * 0.06;`
         );
     };
     return m;
@@ -222,29 +268,28 @@ const additive = {
 export function Blade() {
   const outer = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
-  const rings = useRef<THREE.Group>(null);
+  const hilt = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);
-  const pommel = useRef<THREE.Object3D>(null);
   const { camera, size } = useThree();
 
-  const bladeGeo = useMemo(() => createBladeGeometry(), []);
+  const bladeGeo = useMemo(() => {
+    const base = createBladeGeometry();
+    const shards = shatterGeometry(base);
+    base.dispose();
+    return shards;
+  }, []);
   const ribbonGeo = useMemo(() => createEdgeRibbon(), []);
   const guardGeo = useMemo(() => createGuardGeometry(), []);
   const bladeMat = useBladeMaterial();
 
-  const guardMat = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#16161a", metalness: 0.95, roughness: 0.3, clearcoat: 0.7, envMapIntensity: 1.2 }),
-    []
-  );
-  const collarMat = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#1c1c21", metalness: 1, roughness: 0.25, clearcoat: 0.6, envMapIntensity: 1.2 }),
+  const brassMat = useMemo(
+    () => new THREE.MeshPhysicalMaterial({ color: "#b8924a", metalness: 1, roughness: 0.28, clearcoat: 0.4, envMapIntensity: 1.2 }),
     []
   );
   const gripMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ map: createGripTexture(), metalness: 0.1, roughness: 0.82, envMapIntensity: 0.5 }),
+    () => new THREE.MeshStandardMaterial({ map: createGripTexture(), metalness: 0.1, roughness: 0.78, envMapIntensity: 0.6 }),
     []
   );
-
   const ribbonMat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -276,19 +321,15 @@ export function Blade() {
       }),
     []
   );
-  const ringMats = useMemo(
-    () => [0, 1, 2].map(() => new THREE.MeshBasicMaterial({ color: "#4da3ff", ...additive, opacity: 0 })),
-    []
-  );
 
   useEffect(
     () => () => {
       [bladeGeo, ribbonGeo, guardGeo].forEach((g) => g.dispose());
-      [bladeMat, guardMat, collarMat, gripMat, ribbonMat, haloMat, coreMat, ...ringMats].forEach((m) => m.dispose());
+      [bladeMat, brassMat, gripMat, ribbonMat, haloMat, coreMat].forEach((m) => m.dispose());
       bladeMat.roughnessMap?.dispose();
       gripMat.map?.dispose();
     },
-    [bladeGeo, ribbonGeo, guardGeo, bladeMat, guardMat, collarMat, gripMat, ribbonMat, haloMat, coreMat, ringMats]
+    [bladeGeo, ribbonGeo, guardGeo, bladeMat, brassMat, gripMat, ribbonMat, haloMat, coreMat]
   );
 
   const tmp = useMemo(() => ({ v: new THREE.Vector3() }), []);
@@ -301,98 +342,117 @@ export function Blade() {
     const s = spin.current;
     if (!g || !s) return;
     const rm = store.reducedMotion;
+    const W = size.width;
+    const H = size.height;
 
-    // Where to stand comes from the layout solver (viewport px) — see lib/bladeLayout.
-    const bt = store.blade;
+    // ── choreography ──────────────────────────────────────────────
+    const shatter = store.shatter;
+    const reunite = store.reunite;
+    const smooth = (a: number, b: number, x: number) => {
+      const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    // shards fly apart with the shatter and come home with the reunion
+    const scatter = shatter * (1 - smooth(0.2, 1, reunite));
+    // the formation turns horizontal while it is still in pieces
+    const turn = smooth(0, 0.75, reunite);
+
+    const fallLen = H * (store.isMobile ? 0.6 : 0.78);
+    const finalLen = Math.min(W * 0.66, H * 1.1);
+    const lenPx = fallLen + (finalLen - fallLen) * turn;
+    store.bladeWidthPx = fallLen * 0.12;
+
+    const lane = store.laneReady ? store.lane.cx : W * 0.72;
+    const fallY = H * (0.42 + 0.16 * store.fall) + (rm ? 0 : Math.sin(live.time * 0.6) * H * 0.008);
+    const cxPx = lane + (W / 2 - lane) * shatter;
+    const finaleY = store.finaleY || H * 0.44;
+    // hover mid-screen while shattered; settle into the clear band to reunite
+    const shardY = H * 0.44 + (finaleY - H * 0.44) * turn;
+    const cyPx = fallY + (shardY - fallY) * shatter;
+
+    // viewport px → world, at the blade's depth
     const cam = camera as THREE.PerspectiveCamera;
-    const depth = bt.ambient ? 9 : 1.0; // world units behind z=0
-    const dist = cam.position.z + depth;
-    const worldH = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
-    const worldW = worldH * (size.width / size.height);
-    const ready = store.bladeReady;
-    const targetX = ready ? (bt.cx / size.width - 0.5) * worldW : 0;
-    const targetY = ready ? -(bt.cy / size.height - 0.5) * worldH : 0;
-    const targetScale = ready ? ((bt.length / size.height) * worldH) / MODEL_LENGTH : 0.7;
-
-    // The intro brings the blade in from deep in the void.
+    const depth = 1;
+    const worldH = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * (cam.position.z + depth);
+    const worldW = worldH * (W / H);
     const intro = live.intro;
     const introEase = 1 - Math.pow(1 - intro, 3);
-    const tx = targetX;
-    const ty = targetY + (1 - introEase) * -0.4;
-    const tz = -depth - (1 - introEase) * 6;
+    // intro: the blade drops in from above the frame
+    const tx = (cxPx / W - 0.5) * worldW;
+    const ty = -(cyPx / H - 0.5) * worldH + (1 - introEase) * worldH * 0.9;
+    const tz = -depth;
+    const targetScale = ((lenPx / H) * worldH) / MODEL_LENGTH;
 
-    // Pointer gives a subtle, weighted response. Position glides a little
-    // slower than rotation so relocations read as a deliberate move.
     const px = store.pointer.x;
     const py = store.pointer.y;
     const snap = rm || first.current;
-    const k = snap ? 1 : 1 - Math.exp(-dt * 2.2);
-    const kr = snap ? 1 : 1 - Math.exp(-dt * 2.8);
+    const k = snap ? 1 : 1 - Math.exp(-dt * 2.4);
     first.current = false;
-    g.position.x += (tx + px * 0.1 - g.position.x) * k;
-    g.position.y += (ty + py * 0.06 - g.position.y) * k;
+    g.position.x += (tx + px * 0.08 - g.position.x) * k;
+    g.position.y += (ty + py * 0.05 - g.position.y) * (snap ? 1 : 1 - Math.exp(-dt * 3.2));
     g.position.z += (tz - g.position.z) * k;
-    g.rotation.x += (0.06 - py * 0.14 - g.rotation.x) * kr;
-    g.rotation.z += (bt.angle - px * 0.06 - g.rotation.z) * kr;
-    g.rotation.y += (px * 0.3 - g.rotation.y) * kr;
-    const sc = targetScale * (0.85 + 0.15 * introEase);
-    g.scale.setScalar(g.scale.x + (sc - g.scale.x) * k);
+    // tip down (π) while falling → tip right (3π/2) when reunited
+    const angle = Math.PI + (Math.PI / 2) * turn;
+    g.rotation.z += (angle - px * 0.05 - g.rotation.z) * k;
+    g.rotation.x += (0.05 - py * 0.1 - g.rotation.x) * k;
+    g.scale.setScalar(g.scale.x + (targetScale - g.scale.x) * k);
 
-    // Slow spin about the blade's own axis; the Getsuga slash whips it round.
+    // A falling sword turns slowly, flashing the mirror of its flat; it
+    // settles face-on once reunited. The Getsuga easter egg still whips it.
     const slash = live.slash;
-    // Mostly face-on so the black blade reads as a silhouette; the Getsuga
-    // slash (and a surge) whip it through full turns.
-    if (!rm) spinAngle.current += dt * (live.surge * 1.2 + slash * 9);
-    s.rotation.y = spinAngle.current + (rm ? 0 : Math.sin(live.time * 0.35) * 0.55);
+    if (!rm) spinAngle.current += dt * ((0.45 + Math.min(Math.abs(store.velocity) * 0.02, 1.5)) * (1 - turn) + live.surge * 1.2 + slash * 9);
+    const settle = turn;
+    s.rotation.y = spinAngle.current * (1 - settle) + Math.round(spinAngle.current / Math.PI) * Math.PI * settle;
 
-    // Hover: is the pointer near the blade on screen?
+    // hilt drifts off on its own while the blade is in pieces
+    if (hilt.current) {
+      hilt.current.position.set(0.12 * scatter, -0.25 * scatter, 0);
+      hilt.current.rotation.set(0, 0, 0.35 * scatter);
+    }
+    shatterUniforms.uScatter.value = scatter;
+
+    // presence: ghost the falling blade when no clear lane exists
+    const ghost = shatter < 0.05 && store.laneReady && !store.lane.clear;
+    live.presence += ((ghost ? 0.22 : 1) - live.presence) * (rm ? 1 : 1 - Math.exp(-dt * 2.4));
+    const presence = live.presence;
+    // Shards soften while they hover over the headline; the hilt dissolves
+    // with the illusion and reforms as the pieces come home.
+    const fade = (m: THREE.Material, opacity: number) => {
+      const see = opacity < 0.98;
+      if (m.transparent !== see) {
+        m.transparent = see;
+        m.depthWrite = !see;
+        m.needsUpdate = true;
+      }
+      m.opacity = opacity;
+    };
+    fade(bladeMat, presence * (1 - 0.35 * scatter));
+    const hiltOpacity = presence * (1 - smooth(0.05, 0.6, scatter));
+    fade(brassMat, hiltOpacity);
+    fade(gripMat, hiltOpacity);
+    if (hilt.current) hilt.current.visible = hiltOpacity > 0.01;
+
+    // hover: is the pointer near the blade on screen?
     tmp.v.set(0, 0, 0);
     g.localToWorld(tmp.v);
     tmp.v.project(camera);
-    const dx = (tmp.v.x - px) * (size.width / size.height);
+    const dx = (tmp.v.x - px) * (W / H);
     const dy = tmp.v.y - py;
     const near = Math.exp(-(dx * dx + dy * dy) * 3);
     live.hover += (near - live.hover) * (1 - Math.exp(-dt * 4));
 
-    const energy = live.energy + live.hover * 0.25;
-    edgeUniforms.uEnergy.value = energy * live.light * live.presence;
-    ribbonMat.uniforms.uEnergy.value = energy * live.light * live.presence;
+    const energy = (live.energy + live.hover * 0.25) * (1 - scatter);
+    edgeUniforms.uEnergy.value = energy * live.light * presence;
+    ribbonMat.uniforms.uEnergy.value = energy * live.light * presence;
+    bladeMat.envMapIntensity = (0.35 + 1.0 * live.light) * introEase;
+    brassMat.envMapIntensity = gripMat.envMapIntensity = bladeMat.envMapIntensity * 0.9;
 
-    bladeMat.envMapIntensity = (0.2 + 0.85 * live.light) * introEase;
-    // Fade the solid parts when retreating; depthWrite off keeps the ghost clean.
-    const presence = live.presence;
-    for (const m of [bladeMat, guardMat, collarMat, gripMat]) {
-      const ghost = presence < 0.98;
-      if (m.transparent !== ghost) {
-        m.transparent = ghost;
-        m.depthWrite = !ghost;
-        m.needsUpdate = true;
-      }
-      m.opacity = presence;
-    }
-    guardMat.envMapIntensity = collarMat.envMapIntensity = gripMat.envMapIntensity = bladeMat.envMapIntensity * 0.85;
-
-    haloMat.uniforms.uIntensity.value = (0.18 + energy * 0.28) * live.light * introEase * live.presence;
-    (haloMat.uniforms.uColor.value as THREE.Color).copy(live.color).multiplyScalar(0.55);
-    coreMat.uniforms.uIntensity.value = (0.35 + energy * 0.9) * introEase * (0.6 + 0.4 * live.light) * live.presence;
-
-    // Halo sits behind the blade in world space, facing the camera.
+    haloMat.uniforms.uIntensity.value = (0.16 + energy * 0.25 + scatter * 0.15) * live.light * introEase * presence;
+    (haloMat.uniforms.uColor.value as THREE.Color).copy(live.color).multiplyScalar(0.5);
+    coreMat.uniforms.uIntensity.value = (0.25 + energy * 0.6) * introEase * presence * (1 - scatter);
     if (halo.current) {
       halo.current.position.set(g.position.x, g.position.y, g.position.z - 1.2);
       halo.current.quaternion.copy(camera.quaternion);
-    }
-
-    // Orbiting rings open with energy.
-    if (rings.current) {
-      const r = live.rings;
-      rings.current.children.forEach((child, i) => {
-        const m = child as THREE.Mesh;
-        const spread = 0.42 + r * (0.16 + i * 0.12);
-        m.scale.setScalar(spread);
-        if (!rm) m.rotation.z += dt * (0.25 + i * 0.12) * (i % 2 ? -1 : 1) * (1 + live.surge * 3);
-        ringMats[i].color.copy(live.color);
-        ringMats[i].opacity = r * (0.32 - i * 0.08) * introEase * live.light * live.presence;
-      });
     }
   });
 
@@ -403,39 +463,32 @@ export function Blade() {
       </mesh>
       <group ref={outer}>
         <group ref={spin}>
-          {/* model is authored with the guard at y=0; recentre on its length */}
-          <group position={[0, -1.1, 0]}>
-            <mesh geometry={bladeGeo} material={bladeMat} position={[0, 0.1, 0]} />
+          {/* authored with the guard at y=0; recentre on the full length */}
+          <group position={[0, -1.2, 0]}>
+            <mesh geometry={bladeGeo} material={bladeMat} position={[0, 0.1, 0]} frustumCulled={false} />
             <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0.1, 0]} />
-            {/* collar */}
-            <mesh material={collarMat} position={[-0.01, 0.11, 0]}>
-              <boxGeometry args={[0.3, 0.12, 0.1]} />
-            </mesh>
-            <mesh geometry={guardGeo} material={guardMat} />
-            {/* grip: black cord over red diamonds */}
-            <mesh material={gripMat} position={[0, -0.7, 0]}>
-              <cylinderGeometry args={[0.07, 0.075, 1.3, 32, 1]} />
-            </mesh>
-            <mesh material={guardMat} position={[0, -1.38, 0]}>
-              <cylinderGeometry args={[0.078, 0.072, 0.07, 24]} />
-            </mesh>
-            <object3D ref={pommel} position={[0, -1.42, 0]} />
-            {/* energy core at the guard */}
-            <mesh material={coreMat}>
-              <planeGeometry args={[0.9, 0.9]} />
-            </mesh>
-            <group ref={rings} rotation={[Math.PI / 2 - 0.2, 0, 0]}>
-              {ringMats.map((m, i) => (
-                <mesh key={i} material={m}>
-                  <torusGeometry args={[1, 0.0035 + i * 0.001, 6, 120]} />
-                </mesh>
-              ))}
+            <group ref={hilt}>
+              {/* habaki */}
+              <mesh material={brassMat} position={[-0.01, 0.12, 0]}>
+                <boxGeometry args={[0.27, 0.13, 0.095]} />
+              </mesh>
+              <mesh geometry={guardGeo} material={brassMat} />
+              {/* grip: teal cord over white diamonds */}
+              <mesh material={gripMat} position={[0, -0.66, 0]}>
+                <cylinderGeometry args={[0.068, 0.074, 1.24, 32, 1]} />
+              </mesh>
+              {/* kashira */}
+              <mesh material={brassMat} position={[0, -1.3, 0]}>
+                <cylinderGeometry args={[0.078, 0.074, 0.09, 28]} />
+              </mesh>
+              <mesh material={coreMat}>
+                <planeGeometry args={[0.8, 0.8]} />
+              </mesh>
             </group>
           </group>
         </group>
       </group>
       <Sparks outer={outer} />
-      <Chain anchor={pommel} outer={outer} />
     </>
   );
 }
@@ -453,7 +506,7 @@ const sparkVertex = /* glsl */ `
     float h = mod(aOffset + uTime * 0.35 * aData.z, 1.0);
     float ang = aData.x + uTime * (0.4 + aData.z * 0.6);
     float r = aData.y * (0.6 + h * 0.8);
-    vec3 p = vec3(cos(ang) * r, -1.0 + h * ${(BLADE_LENGTH - 0.1).toFixed(2)}, sin(ang) * r);
+    vec3 p = vec3(cos(ang) * r, -1.1 + h * ${(BLADE_LENGTH).toFixed(2)}, sin(ang) * r);
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = (1.4 + aData.z * 1.6) * uPixelRatio * (8.0 / -mv.z);
@@ -518,106 +571,5 @@ function Sparks({ outer }: { outer: React.RefObject<THREE.Group | null> }) {
   return <points ref={ref} geometry={geometry} material={material} frustumCulled={false} />;
 }
 
+
 export { edgeUniforms };
-
-/* ─────────── Chain: a verlet rope hanging from the pommel ─────────── */
-
-const LINKS = 18;
-const LINK_LEN = 0.05;
-
-function Chain({ anchor, outer }: { anchor: React.RefObject<THREE.Object3D | null>; outer: React.RefObject<THREE.Group | null> }) {
-  const mesh = useRef<THREE.InstancedMesh>(null);
-  const sim = useMemo(
-    () => ({
-      p: Array.from({ length: LINKS + 1 }, () => new THREE.Vector3()),
-      prev: Array.from({ length: LINKS + 1 }, () => new THREE.Vector3()),
-      ready: false,
-      a: new THREE.Vector3(),
-      dir: new THREE.Vector3(),
-      mid: new THREE.Vector3(),
-      q: new THREE.Quaternion(),
-      roll: new THREE.Quaternion(),
-      m: new THREE.Matrix4(),
-      s: new THREE.Vector3(),
-      x: new THREE.Vector3(1, 0, 0),
-    }),
-    []
-  );
-  const material = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#1a1a1f", metalness: 1, roughness: 0.3, clearcoat: 0.5, envMapIntensity: 1.3 }),
-    []
-  );
-  useEffect(() => () => material.dispose(), [material]);
-
-  useFrame((_, dtRaw) => {
-    const a = anchor.current;
-    const o = outer.current;
-    const im = mesh.current;
-    if (!a || !o || !im) return;
-    const dt = Math.min(dtRaw, 1 / 30);
-    const scale = o.scale.x;
-    const seg = LINK_LEN * scale;
-    a.getWorldPosition(sim.a);
-    const { p, prev } = sim;
-
-    if (!sim.ready) {
-      for (let i = 0; i <= LINKS; i++) {
-        p[i].set(sim.a.x, sim.a.y - i * seg, sim.a.z);
-        prev[i].copy(p[i]);
-      }
-      sim.ready = true;
-    }
-
-    // integrate
-    const g = -26 * scale * dt * dt;
-    for (let i = 1; i <= LINKS; i++) {
-      const cur = p[i];
-      const vx = (cur.x - prev[i].x) * 0.985;
-      const vy = (cur.y - prev[i].y) * 0.985;
-      const vz = (cur.z - prev[i].z) * 0.985;
-      prev[i].copy(cur);
-      cur.x += vx;
-      cur.y += vy + g;
-      cur.z += vz;
-    }
-    // constraints
-    p[0].copy(sim.a);
-    for (let it = 0; it < 14; it++) {
-      p[0].copy(sim.a);
-      for (let i = 0; i < LINKS; i++) {
-        const A = p[i];
-        const B = p[i + 1];
-        sim.dir.subVectors(B, A);
-        const d = sim.dir.length() || 1e-6;
-        const diff = (d - seg) / d;
-        if (i === 0) B.addScaledVector(sim.dir, -diff);
-        else {
-          A.addScaledVector(sim.dir, diff * 0.5);
-          B.addScaledVector(sim.dir, -diff * 0.5);
-        }
-      }
-    }
-
-    // place links: alternate each link's roll by 90° like a real chain
-    for (let i = 0; i < LINKS; i++) {
-      sim.dir.subVectors(p[i + 1], p[i]).normalize();
-      sim.mid.addVectors(p[i], p[i + 1]).multiplyScalar(0.5);
-      sim.q.setFromUnitVectors(sim.x, sim.dir);
-      sim.roll.setFromAxisAngle(sim.x, i % 2 ? Math.PI / 2 : 0);
-      sim.q.multiply(sim.roll);
-      sim.s.set(scale * 1.35, scale, scale);
-      sim.m.compose(sim.mid, sim.q, sim.s);
-      im.setMatrixAt(i, sim.m);
-    }
-    im.instanceMatrix.needsUpdate = true;
-    material.envMapIntensity = 1.3 * live.intro * (0.4 + 0.6 * live.light);
-    material.transparent = live.presence < 0.98;
-    material.opacity = live.presence;
-  });
-
-  return (
-    <instancedMesh ref={mesh} args={[undefined, material, LINKS]} frustumCulled={false}>
-      <torusGeometry args={[0.02, 0.0055, 6, 14]} />
-    </instancedMesh>
-  );
-}

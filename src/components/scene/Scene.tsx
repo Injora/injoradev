@@ -69,11 +69,8 @@ function Director() {
 
     live.energy += (kf.energy + bankai * 0.7 + surge * 0.3 - live.energy) * k;
     live.rings += (Math.max(kf.rings, bankai, surge) - live.rings) * k;
-    // When the blade has retreated behind content, it becomes a dim silhouette.
-    const retreat = store.blade.ambient ? 0.6 : 1;
-    live.light += (kf.light * retreat * introT + bankai * 0.2 - live.light) * k;
+    live.light += (kf.light * introT + bankai * 0.2 - live.light) * k;
     live.world += (kf.world - live.world) * k;
-    live.presence += ((store.blade.ambient ? 0.18 : 1) - live.presence) * (rm ? 1 : 1 - Math.exp(-dt * 2.4));
     live.red += (bankai - live.red) * (rm ? 1 : 1 - Math.exp(-dt * 2));
     live.dark += (bankai - live.dark) * (rm ? 1 : 1 - Math.exp(-dt * 1.5));
     live.surge += (surge - live.surge) * (rm ? 1 : 1 - Math.exp(-dt * 2.5));
@@ -81,11 +78,11 @@ function Director() {
     live.slash = since < 1.1 ? Math.sin((since / 1.1) * Math.PI) : 0;
 
     live.color.copy(COLORS.blue).lerp(COLORS.red, live.red);
-    // The blade's own energy is crimson; bankai drives it toward white-hot.
-    edgeUniforms.uColor.value.copy(COLORS.crimson).lerp(COLORS.hot, live.red * 0.45);
+    // Water-moon blue on the edge; bankai still floods it red.
+    edgeUniforms.uColor.value.copy(live.color).lerp(COLORS.ice, 0.2 * (1 - live.red));
 
     // Camera travel: scroll pulls the world towards us.
-    live.travel += (store.scroll * 90 - live.travel) * (rm ? 1 : 1 - Math.exp(-dt * 4));
+    live.travel += (store.scroll * 70 - live.travel) * (rm ? 1 : 1 - Math.exp(-dt * 4));
     const px = store.pointer.x;
     const py = store.pointer.y;
     const cx = px * 0.28;

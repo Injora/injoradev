@@ -34,7 +34,7 @@ export function Contact() {
     <section id="contact" data-scene="contact" aria-labelledby="contact-title" className="relative px-[var(--gutter)] pt-32 md:pt-48">
       <div className="mx-auto max-w-[1500px]">
         <SectionLabel index="06" title="Contact" jp="穿界門" />
-        <h2 id="contact-title" className="display mt-10 text-[12.5vw] text-snow md:text-[8.6vw]">
+        <h2 id="contact-title" className="display mt-10 text-[10.4vw] text-snow md:text-[8.6vw]">
           <MaskLines lines={["Let’s build", "something worth", "remembering."]} />
         </h2>
 
