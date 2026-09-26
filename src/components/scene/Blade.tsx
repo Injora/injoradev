@@ -106,6 +106,7 @@ const edgeUniforms = {
 
 const shatterUniforms = {
   uScatter: { value: 0 },
+  uScrollSpin: { value: 0 },
 };
 
 const ROTATE_GLSL = /* glsl */ `
@@ -134,6 +135,7 @@ function useBladeMaterial() {
           "#include <common>",
           `#include <common>
           uniform float uScatter;
+          uniform float uScrollSpin;
           uniform float uTime;
           attribute float aEdge;
           attribute float aLen;
@@ -150,7 +152,7 @@ function useBladeMaterial() {
           "#include <beginnormal_vertex>",
           `#include <beginnormal_vertex>
           vec3 shAxis = normalize(vec3(aShardDir.y, -aShardDir.x, aShardDir.z + 0.3));
-          float shAng = uScatter * (1.8 + aShardSeed * 3.5);
+          float shAng = uScatter * (1.8 + aShardSeed * 3.5 + uScrollSpin * (aShardSeed - 0.5));
           objectNormal = rotateAxis(objectNormal, shAxis, shAng);`
         )
         // …and drifts away from where it was, hovering while shattered.
@@ -410,6 +412,7 @@ export function Blade() {
       hilt.current.rotation.set(0, 0, 0.35 * scatter);
     }
     shatterUniforms.uScatter.value = scatter;
+    shatterUniforms.uScrollSpin.value = store.scroll * 14;
 
     // presence: ghost the falling blade when no clear lane exists
     const ghost = shatter < 0.05 && store.laneReady && !store.lane.clear;
@@ -426,7 +429,8 @@ export function Blade() {
       }
       m.opacity = opacity;
     };
-    fade(bladeMat, presence * (1 - 0.35 * scatter));
+    // shards drift behind the rest of the page, so keep them quiet
+    fade(bladeMat, presence * (1 - 0.55 * scatter));
     const hiltOpacity = presence * (1 - smooth(0.05, 0.6, scatter));
     fade(brassMat, hiltOpacity);
     fade(gripMat, hiltOpacity);

@@ -87,6 +87,7 @@ export function Stack() {
         {/* Desktop: constellation */}
         <div
           ref={ref}
+          data-blade-shatter
           className="relative mt-16 hidden h-[78vh] min-h-[560px] md:block"
           style={{ perspective: 1400 }}
           onPointerMove={(e) => {
@@ -239,7 +240,7 @@ export function Stack() {
 function MobileStack() {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <div className="mt-14 space-y-10 md:hidden">
+    <div data-blade-shatter className="mt-14 space-y-10 md:hidden">
       {techGroups.map((g) => {
         const members = techs.filter((t) => t.group === g.id);
         const current = members.find((m) => m.name === open);

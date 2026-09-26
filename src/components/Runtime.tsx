@@ -70,6 +70,12 @@ export function Runtime() {
     };
     window.addEventListener("pointermove", onPointer, { passive: true });
 
+    /* ── the element whose arrival shatters the blade (desktop or mobile variant) ── */
+    const shatterAt = () => {
+      for (const el of document.querySelectorAll<HTMLElement>("[data-blade-shatter]")) if (el.offsetHeight > 0) return el;
+      return null;
+    };
+
     /* ── blade placement: re-solve a few times a second, when scrolling is calm ── */
     let lastSolve = 0;
     let debug: CanvasRenderingContext2D | null = null;
@@ -120,14 +126,16 @@ export function Runtime() {
       }
       store.section = s;
 
-      // Kyōka Suigetsu: fall → shatter at the end of the journey → reunite at the bottom.
-      const journeyEnd = bounds[SCENE_ORDER.indexOf("journey")] ?? max;
+      // Kyōka Suigetsu: fall down the centre → shatter as the Stack
+      // constellation arrives → drift → reunite at the very bottom.
       const ease = (x: number) => {
         const c = Math.min(1, Math.max(0, x));
         return c * c * (3 - 2 * c);
       };
-      store.fall = Math.min(1, Math.max(0, y / Math.max(1, journeyEnd - vh * 1.2)));
-      store.shatter = ease((vc - (journeyEnd - vh * 0.55)) / (vh * 0.7));
+      const trigger = shatterAt();
+      const top = trigger ? trigger.getBoundingClientRect().top : vh;
+      store.fall = Math.min(1, Math.max(0, y / Math.max(1, top + y - vh)));
+      store.shatter = ease((vh * 0.92 - top) / (vh * 0.4));
       store.reunite = ease((y - (max - vh * 0.9)) / (vh * 0.8));
       solve(t);
       raf = requestAnimationFrame(tick);

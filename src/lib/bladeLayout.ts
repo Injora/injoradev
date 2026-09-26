@@ -35,7 +35,6 @@ const OCCLUDERS = [
 ].join(",");
 
 let grid = new Uint8Array(COLS * ROWS);
-let current: (BladeLane & { c0: number; c1: number }) | null = null;
 
 function rasterise(vw: number, vh: number) {
   grid = new Uint8Array(COLS * ROWS);
@@ -78,46 +77,21 @@ function slotLane(vh: number): BladeLane | null {
 }
 
 /**
+ * The blade falls down the centre of the page (between About's two columns),
+ * except where a section art-directs a slot. `clear` reports whether that
+ * centre lane is actually free, so the scene can ghost it when it isn't.
  * @param bladeWidth on-screen width of the vertical blade (px)
  * @param minRun     fraction of the viewport height that must be clear
  */
-export function computeLane(vw: number, vh: number, bladeWidth: number, minRun = 0.55): BladeLane {
+export function computeLane(vw: number, vh: number, bladeWidth: number, minRun = 0.45): BladeLane {
   const slot = slotLane(vh);
-  if (slot) {
-    current = null;
-    return slot;
-  }
+  if (slot) return slot;
   rasterise(vw, vh);
   const cw = vw / COLS;
-  const band = Math.max(1, Math.ceil(bladeWidth / cw) + 1);
-
-  let best: (BladeLane & { c0: number; c1: number }) | null = null;
-  for (let c0 = 1; c0 + band < COLS - 1; c0++) {
-    const c1 = c0 + band - 1;
-    const run = clearRun(c0, c1);
-    const cx = ((c0 + c1 + 1) / 2) * cw;
-    // prefer longer clear runs; mild pull away from the extreme edges
-    const edge = Math.min(cx, vw - cx) / (vw / 2);
-    const score = run * (0.85 + 0.15 * Math.min(1, edge * 3));
-    if (!best || score > best.score!) best = { cx, clear: run >= minRun, score, c0, c1 };
-  }
-
-  // Hysteresis: keep our lane while it stays clear and nothing much better appears.
-  if (current) {
-    const run = clearRun(current.c0, current.c1);
-    if (run >= minRun && (!best || best.score! < run * 1.25)) {
-      current = { ...current, clear: true, score: run };
-      return current;
-    }
-  }
-  if (best?.clear) {
-    current = best;
-    return best;
-  }
-  // No clear lane: stay where we were (continuity of the fall), ghosted.
-  const cx = current?.cx ?? vw * 0.72;
-  current = null;
-  return { cx, clear: false };
+  const band = Math.max(1, Math.ceil(bladeWidth / cw));
+  const c0 = Math.max(0, Math.floor(COLS / 2 - band / 2));
+  const c1 = Math.min(COLS - 1, c0 + band - 1);
+  return { cx: vw / 2, clear: clearRun(c0, c1) >= minRun };
 }
 
 /**
