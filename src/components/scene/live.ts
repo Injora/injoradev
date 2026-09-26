@@ -17,6 +17,8 @@ export const live = {
   intro: 0,
   hover: 0,
   slash: 0,
+  /** 1 = fully present, fades toward a ghost when the blade retreats behind content */
+  presence: 1,
   color: new THREE.Color("#4da3ff"),
 };
 

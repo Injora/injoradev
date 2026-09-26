@@ -5,6 +5,7 @@ import Lenis from "lenis";
 import { useEffect, useState } from "react";
 import { SCENE_ORDER, store } from "@/lib/store";
 import { setLenis } from "@/lib/scroll";
+import { computeBladeTarget, drawDebug } from "@/lib/bladeLayout";
 import { Cursor } from "./ui/Cursor";
 import { EasterEggs } from "./EasterEggs";
 import { SceneFallback } from "./scene/SceneFallback";
@@ -69,6 +70,32 @@ export function Runtime() {
     };
     window.addEventListener("pointermove", onPointer, { passive: true });
 
+    /* ── blade placement: re-solve a few times a second, when scrolling is calm ── */
+    let lastSolve = 0;
+    let debug: CanvasRenderingContext2D | null = null;
+    if (location.search.includes("blade-debug")) {
+      const c = document.createElement("canvas");
+      c.style.cssText = "position:fixed;inset:0;z-index:95;pointer-events:none";
+      c.width = innerWidth;
+      c.height = innerHeight;
+      document.body.appendChild(c);
+      debug = c.getContext("2d");
+    }
+    const solve = (t: number, force = false) => {
+      const calm = Math.abs(store.velocity) < 6;
+      if (!force && (t - lastSolve < (calm ? 250 : 700))) return;
+      lastSolve = t;
+      store.blade = computeBladeTarget(window.innerWidth, window.innerHeight);
+      store.bladeReady = true;
+      if (debug) {
+        debug.canvas.width = innerWidth;
+        debug.canvas.height = innerHeight;
+        drawDebug(debug, innerWidth, innerHeight, store.blade);
+      }
+    };
+    const onResize = () => solve(performance.now(), true);
+    window.addEventListener("resize", onResize);
+
     /* ── frame loop: lenis + derived scroll state ── */
     let raf = 0;
     let lastY = window.scrollY;
@@ -87,6 +114,7 @@ export function Runtime() {
         s += Math.min(1, Math.max(0, (vc - (bounds[i] - vh * 0.5)) / vh));
       }
       store.section = s;
+      solve(t);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -104,6 +132,8 @@ export function Runtime() {
       mqReduce.removeEventListener("change", onReduce);
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", onResize);
+      debug?.canvas.remove();
       ro.disconnect();
       lenis?.destroy();
       setLenis(null);

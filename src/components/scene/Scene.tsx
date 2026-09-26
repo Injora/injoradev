@@ -61,7 +61,7 @@ function Director() {
     live.intro = introT;
     store.intro = introT;
 
-    sampleKeyframe(store.section, store.isMobile, kf);
+    sampleKeyframe(store.section, kf);
     const k = rm ? 1 : 1 - Math.exp(-dt * 3);
     const mode = store.mode;
     const bankai = mode === "bankai" ? 1 : 0;
@@ -69,8 +69,11 @@ function Director() {
 
     live.energy += (kf.energy + bankai * 0.7 + surge * 0.3 - live.energy) * k;
     live.rings += (Math.max(kf.rings, bankai, surge) - live.rings) * k;
-    live.light += (kf.light * introT + bankai * 0.2 - live.light) * k;
+    // When the blade has retreated behind content, it becomes a dim silhouette.
+    const retreat = store.blade.ambient ? 0.6 : 1;
+    live.light += (kf.light * retreat * introT + bankai * 0.2 - live.light) * k;
     live.world += (kf.world - live.world) * k;
+    live.presence += ((store.blade.ambient ? 0.18 : 1) - live.presence) * (rm ? 1 : 1 - Math.exp(-dt * 2.4));
     live.red += (bankai - live.red) * (rm ? 1 : 1 - Math.exp(-dt * 2));
     live.dark += (bankai - live.dark) * (rm ? 1 : 1 - Math.exp(-dt * 1.5));
     live.surge += (surge - live.surge) * (rm ? 1 : 1 - Math.exp(-dt * 2.5));

@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { store } from "@/lib/store";
 import { createBladeGeometry, createEdgeRibbon, createGuardGeometry, BLADE_LENGTH } from "./bladeGeometry";
-import { emptyKeyframe, sampleKeyframe } from "./keyframes";
+
+/** pommel → tip, plus a little breathing room, in model units */
+const MODEL_LENGTH = 5.4;
 import { live } from "./live";
 import { seeded } from "./random";
 
@@ -289,7 +291,6 @@ export function Blade() {
     [bladeGeo, ribbonGeo, guardGeo, bladeMat, guardMat, collarMat, gripMat, ribbonMat, haloMat, coreMat, ringMats]
   );
 
-  const target = useMemo(() => emptyKeyframe(), []);
   const tmp = useMemo(() => ({ v: new THREE.Vector3() }), []);
   const spinAngle = useRef(0);
   const first = useRef(true);
@@ -301,27 +302,40 @@ export function Blade() {
     if (!g || !s) return;
     const rm = store.reducedMotion;
 
-    sampleKeyframe(store.section, store.isMobile, target);
+    // Where to stand comes from the layout solver (viewport px) — see lib/bladeLayout.
+    const bt = store.blade;
+    const cam = camera as THREE.PerspectiveCamera;
+    const depth = bt.ambient ? 9 : 1.0; // world units behind z=0
+    const dist = cam.position.z + depth;
+    const worldH = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
+    const worldW = worldH * (size.width / size.height);
+    const ready = store.bladeReady;
+    const targetX = ready ? (bt.cx / size.width - 0.5) * worldW : 0;
+    const targetY = ready ? -(bt.cy / size.height - 0.5) * worldH : 0;
+    const targetScale = ready ? ((bt.length / size.height) * worldH) / MODEL_LENGTH : 0.7;
 
     // The intro brings the blade in from deep in the void.
     const intro = live.intro;
     const introEase = 1 - Math.pow(1 - intro, 3);
-    const tx = target.pos[0];
-    const ty = target.pos[1] + (1 - introEase) * -0.4;
-    const tz = target.pos[2] - (1 - introEase) * 6;
+    const tx = targetX;
+    const ty = targetY + (1 - introEase) * -0.4;
+    const tz = -depth - (1 - introEase) * 6;
 
-    // Pointer gives a subtle, weighted response.
+    // Pointer gives a subtle, weighted response. Position glides a little
+    // slower than rotation so relocations read as a deliberate move.
     const px = store.pointer.x;
     const py = store.pointer.y;
-    const k = rm || first.current ? 1 : 1 - Math.exp(-dt * 2.6);
+    const snap = rm || first.current;
+    const k = snap ? 1 : 1 - Math.exp(-dt * 2.2);
+    const kr = snap ? 1 : 1 - Math.exp(-dt * 2.8);
     first.current = false;
-    g.position.x += (tx + px * 0.12 - g.position.x) * k;
-    g.position.y += (ty + py * 0.08 - g.position.y) * k;
+    g.position.x += (tx + px * 0.1 - g.position.x) * k;
+    g.position.y += (ty + py * 0.06 - g.position.y) * k;
     g.position.z += (tz - g.position.z) * k;
-    g.rotation.x += (target.tiltX - py * 0.18 - g.rotation.x) * k;
-    g.rotation.z += (target.tiltZ - px * 0.12 - g.rotation.z) * k;
-    g.rotation.y += (px * 0.35 - g.rotation.y) * k;
-    const sc = target.scale * (0.85 + 0.15 * introEase);
+    g.rotation.x += (0.06 - py * 0.14 - g.rotation.x) * kr;
+    g.rotation.z += (bt.angle - px * 0.06 - g.rotation.z) * kr;
+    g.rotation.y += (px * 0.3 - g.rotation.y) * kr;
+    const sc = targetScale * (0.85 + 0.15 * introEase);
     g.scale.setScalar(g.scale.x + (sc - g.scale.x) * k);
 
     // Slow spin about the blade's own axis; the Getsuga slash whips it round.
@@ -341,15 +355,26 @@ export function Blade() {
     live.hover += (near - live.hover) * (1 - Math.exp(-dt * 4));
 
     const energy = live.energy + live.hover * 0.25;
-    edgeUniforms.uEnergy.value = energy * live.light;
-    ribbonMat.uniforms.uEnergy.value = energy * live.light;
+    edgeUniforms.uEnergy.value = energy * live.light * live.presence;
+    ribbonMat.uniforms.uEnergy.value = energy * live.light * live.presence;
 
     bladeMat.envMapIntensity = (0.2 + 0.85 * live.light) * introEase;
+    // Fade the solid parts when retreating; depthWrite off keeps the ghost clean.
+    const presence = live.presence;
+    for (const m of [bladeMat, guardMat, collarMat, gripMat]) {
+      const ghost = presence < 0.98;
+      if (m.transparent !== ghost) {
+        m.transparent = ghost;
+        m.depthWrite = !ghost;
+        m.needsUpdate = true;
+      }
+      m.opacity = presence;
+    }
     guardMat.envMapIntensity = collarMat.envMapIntensity = gripMat.envMapIntensity = bladeMat.envMapIntensity * 0.85;
 
-    haloMat.uniforms.uIntensity.value = (0.18 + energy * 0.28) * live.light * introEase;
+    haloMat.uniforms.uIntensity.value = (0.18 + energy * 0.28) * live.light * introEase * live.presence;
     (haloMat.uniforms.uColor.value as THREE.Color).copy(live.color).multiplyScalar(0.55);
-    coreMat.uniforms.uIntensity.value = (0.35 + energy * 0.9) * introEase * (0.6 + 0.4 * live.light);
+    coreMat.uniforms.uIntensity.value = (0.35 + energy * 0.9) * introEase * (0.6 + 0.4 * live.light) * live.presence;
 
     // Halo sits behind the blade in world space, facing the camera.
     if (halo.current) {
@@ -362,11 +387,11 @@ export function Blade() {
       const r = live.rings;
       rings.current.children.forEach((child, i) => {
         const m = child as THREE.Mesh;
-        const spread = 0.55 + r * (0.35 + i * 0.28);
+        const spread = 0.42 + r * (0.16 + i * 0.12);
         m.scale.setScalar(spread);
         if (!rm) m.rotation.z += dt * (0.25 + i * 0.12) * (i % 2 ? -1 : 1) * (1 + live.surge * 3);
         ringMats[i].color.copy(live.color);
-        ringMats[i].opacity = r * (0.5 - i * 0.12) * introEase;
+        ringMats[i].opacity = r * (0.32 - i * 0.08) * introEase * live.light * live.presence;
       });
     }
   });
@@ -486,7 +511,7 @@ function Sparks({ outer }: { outer: React.RefObject<THREE.Group | null> }) {
     p.rotation.copy(o.rotation);
     p.scale.copy(o.scale);
     material.uniforms.uPixelRatio.value = state.gl.getPixelRatio();
-    material.uniforms.uEnergy.value = Math.max(0, live.energy - 0.3) * 1.2 * live.light + live.surge;
+    material.uniforms.uEnergy.value = (Math.max(0, live.energy - 0.3) * 1.2 * live.light + live.surge) * live.presence;
   });
 
   // bounding sphere is irrelevant for shader-placed points
@@ -586,6 +611,8 @@ function Chain({ anchor, outer }: { anchor: React.RefObject<THREE.Object3D | nul
     }
     im.instanceMatrix.needsUpdate = true;
     material.envMapIntensity = 1.3 * live.intro * (0.4 + 0.6 * live.light);
+    material.transparent = live.presence < 0.98;
+    material.opacity = live.presence;
   });
 
   return (

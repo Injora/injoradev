@@ -5,6 +5,8 @@
  * thing components subscribe to.
  */
 
+import type { BladeTarget } from "./bladeLayout";
+
 export type Mode = "normal" | "bankai" | "surge";
 
 type Listener = (mode: Mode) => void;
@@ -26,6 +28,9 @@ export const store = {
   isMobile: false,
   reducedMotion: false,
   mode: "normal" as Mode,
+  /** where the blade should stand, solved from the page layout (viewport px) */
+  blade: { cx: 0, cy: 0, length: 0, angle: -0.6, ambient: true } as BladeTarget,
+  bladeReady: false,
   /** timestamp (ms) of the last Getsuga slash, for the scene to react */
   slashAt: -1e9,
 };

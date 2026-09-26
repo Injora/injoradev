@@ -164,7 +164,7 @@ function Network({ selected, onSelect }: { selected: string; onSelect: (id: stri
   );
 
   return (
-    <div className="relative aspect-[600/420] w-full">
+    <div className="relative aspect-[600/420] w-full" data-occlude>
       <svg viewBox="0 0 600 420" className="absolute inset-0 h-full w-full" aria-hidden>
         {ossOrgs.map((o) => {
           const p = ORG_POS[o.id];
@@ -293,7 +293,7 @@ function Heatmap() {
           more
         </div>
       </div>
-      <div ref={ref} className="mt-6 overflow-x-auto pb-2" data-lenis-prevent-horizontal>
+      <div ref={ref} className="mt-6 overflow-x-auto pb-2" data-lenis-prevent-horizontal data-occlude>
         <svg
           viewBox={`0 0 ${weeks.length * (cell + gap)} ${7 * (cell + gap)}`}
           className="h-auto w-full min-w-[720px]"
