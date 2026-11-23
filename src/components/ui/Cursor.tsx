@@ -15,6 +15,22 @@ export function Cursor() {
   const [pressed, setPressed] = useState(false);
   const [hidden, setHidden] = useState(true);
 
+  // Every click or tap drops a ripple into the water.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const drop = (e: PointerEvent) => {
+      for (const delay of [0, 120]) {
+        const r = document.createElement("span");
+        r.setAttribute("aria-hidden", "true");
+        r.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;width:140px;height:140px;border-radius:50%;border:1px solid rgb(111 240 216 / 0.7);pointer-events:none;z-index:89;animation:ripple 0.9s cubic-bezier(0.16,1,0.3,1) ${delay}ms both`;
+        document.body.appendChild(r);
+        setTimeout(() => r.remove(), 1100 + delay);
+      }
+    };
+    window.addEventListener("pointerdown", drop, { passive: true });
+    return () => window.removeEventListener("pointerdown", drop);
+  }, []);
+
   useEffect(() => {
     const mq = window.matchMedia("(pointer: fine) and (hover: hover)");
     if (!mq.matches) return;
@@ -82,22 +98,23 @@ export function Cursor() {
             height: size,
             scale: pressed ? 0.85 : 1,
             transitionProperty: "width,height,background-color,border-color,scale",
-            borderColor: state.kind === "default" ? "rgb(255 255 255 / 0.22)" : "rgb(207 230 255 / 0.55)",
-            backgroundColor: state.kind === "view" ? "rgb(242 243 246 / 0.95)" : state.kind === "link" ? "rgb(77 163 255 / 0.08)" : "transparent",
+            borderColor: state.kind === "default" ? "rgb(201 244 236 / 0.35)" : "rgb(111 240 216 / 0.7)",
+            backgroundColor: state.kind === "view" ? "rgb(230 243 241 / 0.95)" : state.kind === "link" ? "rgb(111 240 216 / 0.1)" : "rgb(201 244 236 / 0.03)",
+            boxShadow: "inset 6px -6px 12px -8px rgb(255 255 255 / 0.35)",
           }}
         >
           <span
-            className={`whitespace-nowrap font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-black transition-opacity duration-300 ${
+            className={`whitespace-nowrap text-xs font-semibold text-abyss transition-opacity duration-300 ${
               state.kind === "view" ? "opacity-100 delay-150" : "opacity-0"
             }`}
           >
-            {state.label || "View"} →
+            {state.label || "Open"}
           </span>
         </div>
       </div>
       <div ref={dot} className="absolute left-0 top-0 will-change-transform">
         <div
-          className={`h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-snow transition-opacity duration-200 ${
+          className={`h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-glow transition-opacity duration-200 ${
             state.kind === "view" ? "opacity-0" : "opacity-100"
           }`}
         />

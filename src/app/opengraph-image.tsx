@@ -15,19 +15,17 @@ export default function OG() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 72,
-          background: "radial-gradient(ellipse at 70% 40%, #0d1a2e 0%, #030304 60%)",
-          color: "#f2f3f6",
+          background: "linear-gradient(180deg, #03111f 0%, #0b3a4a 52%, #0b4f66 53%, #021420 100%)",
+          color: "#e6f3f1",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", fontSize: 22, letterSpacing: 6, color: "#8a8e98" }}>FULL-STACK DIVISION</div>
+        <div style={{ display: "flex", fontSize: 26, color: "#6ff0d8" }}>Full-stack developer and open-source contributor</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 200, fontWeight: 800, letterSpacing: -8, lineHeight: 1 }}>INJORA</div>
-          <div style={{ display: "flex", marginTop: 24, fontSize: 30, color: "#c9ccd3" }}>
-            Full-Stack Developer <span style={{ color: "#4da3ff", margin: "0 18px" }}>/</span> Open-Source Contributor
-          </div>
+          <div style={{ display: "flex", marginTop: 24, fontSize: 30, color: "#b4ccd3" }}>Merged work in cBioPortal and Sugar Labs</div>
         </div>
-        <div style={{ display: "flex", height: 3, width: 420, background: "linear-gradient(90deg, #4da3ff, transparent)" }} />
+        <div style={{ display: "flex", height: 3, width: 420, background: "linear-gradient(90deg, #6ff0d8, transparent)" }} />
       </div>
     ),
     size

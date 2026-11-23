@@ -31,7 +31,7 @@ export function CompassVisual({ accent }: { accent: string }) {
 
   return (
     <div ref={ref} className="h-full">
-      <Frame title="opensource-compass / results" accent={accent} note="Interface study · illustrative">
+      <Frame title="opensource-compass / results" accent={accent}>
         <div className="grid h-full grid-cols-[1.1fr_1fr] gap-4 p-5">
           <div className="flex flex-col">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-dim">Top 5 · evidence-backed</p>
@@ -59,7 +59,7 @@ export function CompassVisual({ accent }: { accent: string }) {
             <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px]">
               <span className="rounded-full border border-white/10 px-2 py-0.5 text-mist">↗ source linked</span>
               <span className="rounded-full border border-white/10 px-2 py-0.5 text-mist">timestamped</span>
-              <span className="rounded-full border border-ember/40 px-2 py-0.5 text-ember/90">Unknown / insufficient data</span>
+              <span className="rounded-full border border-gold/40 px-2 py-0.5 text-gold/90">Unknown / insufficient data</span>
             </div>
           </div>
 
@@ -85,7 +85,7 @@ export function CompassVisual({ accent }: { accent: string }) {
             </ul>
             <motion.div
               className="mt-3 rounded-lg border px-3 py-2 font-mono text-[10px] leading-relaxed"
-              animate={{ borderColor: phase === 2 ? `${accent}88` : "rgba(255,255,255,0.08)", color: phase === 2 ? "#cfe6ff" : "#8a8e98" }}
+              animate={{ borderColor: phase === 2 ? `${accent}88` : "rgba(255,255,255,0.08)", color: phase === 2 ? "#c9f4ec" : "#7d9ca8" }}
             >
               30-day roadmap → week 1: set up, read CONTRIBUTING, pick a good-first-issue
             </motion.div>

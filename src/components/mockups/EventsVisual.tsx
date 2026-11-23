@@ -93,7 +93,7 @@ export function EventsVisual({ accent }: { accent: string }) {
                     <span className="text-silver">{c}</span>
                     <motion.span
                       className="font-mono text-[11px]"
-                      animate={{ color: ok ? accent : "#5d616b" }}
+                      animate={{ color: ok ? accent : "#4f6f7c" }}
                     >
                       {ok ? "pass" : "···"}
                     </motion.span>
@@ -105,7 +105,7 @@ export function EventsVisual({ accent }: { accent: string }) {
               className="mt-3 rounded-lg px-3 py-2.5 text-center font-mono text-[11px]"
               animate={{
                 backgroundColor: checked === CHECKS.length ? `${accent}22` : "rgba(255,255,255,0.02)",
-                color: checked === CHECKS.length ? "#f2f3f6" : "#5d616b",
+                color: checked === CHECKS.length ? "#e6f3f1" : "#4f6f7c",
               }}
             >
               {checked === CHECKS.length ? "attendance marked" : "waiting for scan"}

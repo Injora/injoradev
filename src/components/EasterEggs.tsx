@@ -2,29 +2,28 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { setMode, store } from "@/lib/store";
+import { setMode } from "@/lib/store";
 
 /**
  * Hidden interactions. None are required to use the site.
- *   · type "bankai"          → the blade's full release (black blade, red edge)
- *   · ↑↑↓↓←→←→BA             → reiatsu surge
- *   · click the logo 5 times → Getsuga Tenshō
+ *   type "onepiece", or click the hat  → gold light floods the water
+ *   ↑↑↓↓←→←→BA, or the logo 5 times    → a storm rolls in
  */
 const KONAMI = ["arrowup", "arrowup", "arrowdown", "arrowdown", "arrowleft", "arrowright", "arrowleft", "arrowright", "b", "a"];
+const WORD = "onepiece";
 
 export function EasterEggs() {
-  const [event, setEvent] = useState<null | "bankai" | "surge" | "getsuga">(null);
+  const [event, setEvent] = useState<null | "storm" | "treasure">(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     let typed = "";
     let keys: string[] = [];
 
-    const trigger = (kind: "bankai" | "surge" | "getsuga", ms: number) => {
+    const trigger = (kind: "storm" | "treasure", ms: number) => {
       clearTimeout(timer.current);
       setEvent(kind);
-      if (kind === "getsuga") store.slashAt = performance.now();
-      else setMode(kind);
+      setMode(kind);
       timer.current = setTimeout(() => {
         setEvent(null);
         setMode("normal");
@@ -38,24 +37,27 @@ export function EasterEggs() {
       keys = [...keys, k].slice(-KONAMI.length);
       if (keys.join() === KONAMI.join()) {
         keys = [];
-        trigger("surge", 6000);
+        trigger("storm", 8000);
         return;
       }
       if (k.length === 1) {
-        typed = (typed + k).slice(-6);
-        if (typed === "bankai") {
+        typed = (typed + k).slice(-WORD.length);
+        if (typed === WORD) {
           typed = "";
-          trigger("bankai", 9000);
+          trigger("treasure", 7000);
         }
       }
     };
-    const onLogo = () => trigger("getsuga", 2200);
+    const onStorm = () => trigger("storm", 8000);
+    const onTreasure = () => trigger("treasure", 7000);
 
     window.addEventListener("keydown", onKey);
-    window.addEventListener("injora:getsuga", onLogo);
+    window.addEventListener("injora:storm", onStorm);
+    window.addEventListener("injora:treasure", onTreasure);
     return () => {
+      window.removeEventListener("injora:treasure", onTreasure);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("injora:getsuga", onLogo);
+      window.removeEventListener("injora:storm", onStorm);
       clearTimeout(timer.current);
     };
   }, []);
@@ -63,12 +65,32 @@ export function EasterEggs() {
   return (
     <>
       <p className="sr-only" aria-live="polite">
-        {event === "bankai" ? "Bankai released." : event === "surge" ? "Reiatsu surge." : event === "getsuga" ? "Getsuga Tenshō." : ""}
+        {event === "storm" ? "A storm rolls in." : event === "treasure" ? "Treasure found." : ""}
       </p>
       <AnimatePresence>
-        {event === "bankai" && (
+        {event === "storm" && (
+          <motion.div key="storm" className="pointer-events-none fixed inset-0 z-[70]" exit={{ opacity: 0 }} aria-hidden>
+            <motion.div
+              className="absolute inset-0 bg-[#dff6ff] mix-blend-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.7, 0, 0.45, 0, 0, 0.6, 0] }}
+              transition={{ duration: 6, times: [0, 0.03, 0.08, 0.11, 0.16, 0.6, 0.63, 0.7] }}
+            />
+            <motion.svg
+              viewBox="0 0 100 200"
+              className="absolute left-[64%] top-0 h-[55vh]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 0, 0.8, 0] }}
+              transition={{ duration: 1, times: [0, 0.05, 0.25, 0.3, 0.6] }}
+            >
+              <path d="M60 0 L42 70 L58 72 L30 200 L48 95 L32 93 L52 0 Z" fill="#e8fbff" style={{ filter: "drop-shadow(0 0 12px #9fe8ff)" }} />
+            </motion.svg>
+          </motion.div>
+        )}
+
+        {event === "treasure" && (
           <motion.div
-            key="bankai"
+            key="treasure"
             className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -76,72 +98,20 @@ export function EasterEggs() {
             aria-hidden
           >
             <motion.div
-              className="absolute inset-0 bg-ember mix-blend-screen"
-              initial={{ opacity: 0.35 }}
-              animate={{ opacity: 0 }}
-              transition={{ duration: 0.9, ease: "easeOut" }}
+              className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(245_196_106/0.35),transparent_65%)]"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: [0, 1, 0.6] }}
+              transition={{ duration: 2.4, ease: "easeOut" }}
             />
-            <motion.div
-              className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgb(40_0_6/0.55)_100%)]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1.2 }}
-            />
-            <motion.div
-              className="relative text-center"
-              initial={{ opacity: 0, scale: 1.3, filter: "blur(18px)" }}
-              animate={{ opacity: [0, 1, 1, 0], scale: [1.3, 1, 1, 0.96], filter: ["blur(18px)", "blur(0px)", "blur(0px)", "blur(8px)"] }}
-              transition={{ duration: 3.2, times: [0, 0.2, 0.75, 1], ease: "easeOut" }}
+            <motion.p
+              className="display relative px-6 text-center text-[12vw] text-gold md:text-[7vw]"
+              style={{ textShadow: "0 0 40px rgb(245 196 106 / 0.6)" }}
+              initial={{ opacity: 0, y: 30, filter: "blur(16px)" }}
+              animate={{ opacity: [0, 1, 1, 0], y: [30, 0, 0, -10], filter: ["blur(16px)", "blur(0px)", "blur(0px)", "blur(6px)"] }}
+              transition={{ duration: 4, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
             >
-              <div className="jp text-[22vw] leading-none text-snow/90 md:text-[14vw]">卍解</div>
-              <div className="eyebrow mt-4 !text-ember">Bankai · full release</div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {event === "surge" && (
-          <motion.div
-            key="surge"
-            className="pointer-events-none fixed inset-x-0 bottom-10 z-[70] flex justify-center"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            aria-hidden
-          >
-            <div className="glass rounded-full px-5 py-2 font-mono text-xs tracking-[0.2em] text-ice">
-              <span className="jp mr-2">霊圧</span> REIATSU SURGE
-            </div>
-          </motion.div>
-        )}
-
-        {event === "getsuga" && (
-          <motion.div key="getsuga" className="pointer-events-none fixed inset-0 z-[70] overflow-hidden" exit={{ opacity: 0 }} aria-hidden>
-            <motion.svg
-              viewBox="0 0 400 400"
-              className="absolute top-1/2 h-[120vh] w-[120vh] -translate-y-1/2"
-              initial={{ left: "-60%", opacity: 0, rotate: -18 }}
-              animate={{ left: "110%", opacity: [0, 1, 1, 0], rotate: -8 }}
-              transition={{ duration: 1.1, ease: [0.7, 0, 0.2, 1] }}
-            >
-              <defs>
-                <radialGradient id="gt" cx="0.35" cy="0.5" r="0.7">
-                  <stop offset="0.55" stopColor="#cfe6ff" stopOpacity="0.95" />
-                  <stop offset="0.8" stopColor="#4da3ff" stopOpacity="0.6" />
-                  <stop offset="1" stopColor="#e21d35" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <path d="M150 20 Q360 200 150 380 Q290 200 150 20 Z" fill="url(#gt)" />
-              <path d="M150 20 Q360 200 150 380" stroke="#fff" strokeWidth="2" fill="none" opacity="0.9" />
-            </motion.svg>
-            <motion.div
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: [0, 1, 0], y: 0 }}
-              transition={{ duration: 2, times: [0, 0.3, 1] }}
-            >
-              <span className="jp text-2xl text-snow">月牙天衝</span>
-              <span className="eyebrow ml-3">Getsuga Tenshō</span>
-            </motion.div>
+              The One Piece is real.
+            </motion.p>
           </motion.div>
         )}
       </AnimatePresence>

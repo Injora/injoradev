@@ -10,12 +10,12 @@ export const identity = {
   name: "Injora",
   role: "Full-Stack Developer",
   secondary: "Open-Source Contributor",
-  division: "Full-Stack Division",
-  tagline: "Building full-stack systems — and sharpening them in open source.",
+  division: "Full-Stack Crew",
+  tagline: "Building full-stack systems — and charting them through open source.",
   mission: "Mastering Java + Spring Boot",
   next: "AI / ML",
   offDuty: ["anime", "movies", "comics"],
-  quote: "The code is my zanpakutō, and every commit sharpens the blade.",
+  quote: "The code is my ship, and every commit charts new water.",
   site: "https://injoradev.in",
   github: "https://github.com/Injora",
   githubHandle: "Injora",
@@ -38,11 +38,11 @@ export const navItems: { id: SectionId; label: string }[] = [
 export type TechGroupId = "shikai" | "bankai" | "kido" | "tools" | "training";
 
 export const techGroups: { id: TechGroupId; label: string; codename: string; blurb: string }[] = [
-  { id: "shikai", label: "Frontend", codename: "Shikai", blurb: "The first release — interfaces people touch." },
-  { id: "bankai", label: "Backend", codename: "Bankai", blurb: "Full release — APIs, auth, realtime, and the rules that hold them together." },
-  { id: "kido", label: "Databases", codename: "Kidō", blurb: "Supporting arts — schemas, row-level security, geospatial queries." },
-  { id: "tools", label: "Tools", codename: "Gear", blurb: "What ships the work and connects it to the world." },
-  { id: "training", label: "Learning / Exploring", codename: "Training arc", blurb: "Where the blade is being sharpened right now." },
+  { id: "shikai", label: "Frontend", codename: "Observation Haki", blurb: "Reading what people see and touch — interfaces first." },
+  { id: "bankai", label: "Backend", codename: "Armament Haki", blurb: "Hardened APIs, auth, realtime, and the rules that hold them together." },
+  { id: "kido", label: "Databases", codename: "Log Pose", blurb: "The records that point the way — schemas, row-level security, geospatial queries." },
+  { id: "tools", label: "Tools", codename: "Ship’s rigging", blurb: "What ships the work and connects it to the world." },
+  { id: "training", label: "Learning / Exploring", codename: "New World", blurb: "The waters being charted right now." },
 ];
 
 export type Tech = {
@@ -54,12 +54,12 @@ export type Tech = {
   usedIn: string[];
   /** 0–1, how central it is — drives node size in the constellation */
   weight: number;
-  /** marks the README's declared zanpakutō */
+  /** marks the main language */
   signature?: boolean;
 };
 
 export const techs: Tech[] = [
-  { name: "JavaScript", group: "shikai", signature: true, weight: 1, note: "My zanpakutō — the main language everything else grew from.", usedIn: ["Bleach Battle Arena", "Spin-n-Spill", "HealthQuest", "Sugar Labs Music Blocks PR"] },
+  { name: "JavaScript", group: "shikai", signature: true, weight: 1, note: "My flagship — the main language everything else grew from.", usedIn: ["Bleach Battle Arena", "Spin-n-Spill", "HealthQuest", "Sugar Labs Music Blocks PR"] },
   { name: "TypeScript", group: "shikai", weight: 0.95, note: "Default for anything with more than one moving part.", usedIn: ["OpenSource Compass", "NST-Events", "Shuttle Tracker", "cBioPortal frontend PRs"] },
   { name: "React", group: "shikai", weight: 0.9, note: "Component systems and dashboards.", usedIn: ["HealthQuest dashboard", "cBioPortal frontend PRs"] },
   { name: "Next.js", group: "shikai", weight: 0.75, note: "App Router builds with server-side session handling.", usedIn: ["Nirmaan 3.0 registration", "This portfolio"] },
@@ -152,7 +152,7 @@ export const flagshipProjects: Project[] = [
   {
     slug: "shuttle-tracker",
     name: "Shuttle Tracker",
-    codename: "Senkaimon",
+    codename: "Harbor Line",
     oneLiner: "Live shuttle tracking for an off-campus hostel network.",
     summary:
       "Student, driver and admin roles in a single Expo codebase — with every business rule enforced server-side.",
@@ -406,7 +406,7 @@ export type Milestone = {
 };
 
 export const journey: Milestone[] = [
-  { date: "Jun 2025", stage: "Learning", title: "The blade is forged", body: "GitHub account created. HTML, CSS and JavaScript become the first forms." },
+  { date: "Jun 2025", stage: "Learning", title: "Setting sail", body: "GitHub account created. HTML, CSS and JavaScript become the first charts." },
   { date: "Oct 2025", stage: "Open Source", title: "First contributions", body: "Eight merged pull requests across community projects in a single weekend.", href: "https://github.com/pixel-museum/css-art-museum/pull/126" },
   { date: "Nov 2025", stage: "Open Source", title: "NST-SDC", body: "Merged work in the NST Student Developer Club’s Iris project.", href: "https://github.com/nst-sdc/iris/pull/11" },
   { date: "Jan 2026", stage: "Open Source", title: "Established orgs", body: "First merges into Sugar Labs’ Music Blocks and cBioPortal’s frontend.", href: "https://github.com/sugarlabs/musicblocks/pull/5259" },

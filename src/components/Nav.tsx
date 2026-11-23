@@ -4,15 +4,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { identity, navItems, type SectionId } from "@/content/profile";
 import { scrollToId } from "@/lib/scroll";
+import { JollyRoger } from "./ui/Pirate";
 
 export function Mark({ className }: { className?: string }) {
-  // Original mark: a crescent cut by a single blade line.
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <path d="M15.5 3.2A9 9 0 1 0 20.8 15 7.2 7.2 0 1 1 15.5 3.2Z" fill="currentColor" opacity="0.9" />
-      <path d="M4 20 20.5 3.5" stroke="#4da3ff" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
+  return <JollyRoger className={className} />;
 }
 
 export function Nav() {
@@ -57,7 +52,7 @@ export function Nav() {
     clicks.current = [...clicks.current.filter((t) => now - t < 1800), now];
     if (clicks.current.length >= 5) {
       clicks.current = [];
-      window.dispatchEvent(new Event("injora:getsuga"));
+      window.dispatchEvent(new Event("injora:storm"));
     }
     go("top");
   };
@@ -71,8 +66,8 @@ export function Nav() {
         }`}
       >
         <button onClick={onLogo} className="group flex items-center gap-2.5 text-snow" aria-label="Injora — back to top">
-          <Mark className="h-5 w-5 transition-transform duration-700 ease-[var(--ease-cinema)] group-hover:-rotate-12" />
-          <span className="display text-[15px] tracking-[0.02em]">INJORA</span>
+          <Mark className="h-8 w-8 transition-transform duration-700 ease-[var(--ease-cinema)] group-hover:-rotate-12 group-hover:scale-110" />
+          <span className="display text-lg tracking-[0.01em]">Injora</span>
         </button>
 
         <ul className="hidden items-center gap-1 md:flex">
@@ -85,12 +80,12 @@ export function Nav() {
                   go(item.id);
                 }}
                 aria-current={active === item.id ? "true" : undefined}
-                className={`relative rounded-full px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.16em] transition-colors duration-300 ${
+                className={`relative rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors duration-300 ${
                   active === item.id ? "text-snow" : "text-mist hover:text-snow"
                 }`}
               >
                 {active === item.id && (
-                  <motion.span layoutId="nav-active" className="absolute inset-0 -z-10 rounded-full bg-white/[0.07]" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                  <motion.span layoutId="nav-active" className="absolute inset-0 -z-10 rounded-full bg-glow/[0.12]" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
                 )}
                 {item.label}
               </a>
@@ -100,13 +95,13 @@ export function Nav() {
 
         <a
           href={`mailto:${identity.email}`}
-          className="hidden rounded-full bg-snow px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-black transition-colors hover:bg-ice md:inline-block"
+          className="hidden rounded-full bg-snow px-4 py-2 text-[13px] font-semibold text-abyss transition-colors hover:bg-glow md:inline-block"
         >
           Say hi
         </a>
 
         <button
-          className="flex h-10 items-center gap-2 rounded-full px-3 font-mono text-[11px] uppercase tracking-[0.16em] text-snow md:hidden"
+          className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-snow md:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls="mobile-menu"
@@ -123,7 +118,7 @@ export function Nav() {
         {open && (
           <motion.div
             id="mobile-menu"
-            className="fixed inset-0 -z-10 flex flex-col justify-between bg-void/95 px-[var(--gutter)] pb-10 pt-28 backdrop-blur-xl md:hidden"
+            className="fixed inset-0 -z-10 flex flex-col justify-between bg-abyss/95 px-[var(--gutter)] pb-10 pt-28 backdrop-blur-xl md:hidden"
             initial={{ clipPath: "inset(0 0 100% 0)" }}
             animate={{ clipPath: "inset(0 0 0% 0)" }}
             exit={{ clipPath: "inset(0 0 100% 0)" }}
@@ -140,13 +135,12 @@ export function Nav() {
                     }}
                     className="flex items-baseline gap-4 py-1"
                   >
-                    <span className="font-mono text-xs text-dim">0{i + 1}</span>
                     <span className="display text-[13vw] text-snow">{item.label}</span>
                   </a>
                 </motion.li>
               ))}
             </ul>
-            <div className="flex gap-6 font-mono text-xs uppercase tracking-[0.16em] text-mist">
+            <div className="flex gap-6 text-sm font-semibold text-mist">
               <a href={identity.github} target="_blank" rel="noreferrer">GitHub</a>
               <a href={identity.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>
               <a href={`mailto:${identity.email}`}>Email</a>

@@ -48,11 +48,11 @@ export function ArenaVisual({ accent }: { accent: string }) {
               <span className="display text-xl text-snow">VS</span>
               <span className="h-px w-10 bg-white/15" />
             </div>
-            <Bar value={beat.b} accent="#c9ccd3" label="P2 BP" hit={beat.hit === "b"} />
+            <Bar value={beat.b} accent="#b4ccd3" label="P2 BP" hit={beat.hit === "b"} />
             <AnimatePresence mode="wait">
               <motion.p
                 key={i}
-                className={`mt-6 text-center font-mono text-[11px] uppercase tracking-[0.16em] ${beat.revive ? "text-ember" : "text-silver"}`}
+                className={`mt-6 text-center font-mono text-[11px] uppercase tracking-[0.16em] ${beat.revive ? "text-gold" : "text-silver"}`}
                 initial={{ opacity: 0, y: 8, scale: beat.revive ? 1.4 : 1 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -62,7 +62,7 @@ export function ArenaVisual({ accent }: { accent: string }) {
             </AnimatePresence>
             {beat.revive && (
               <motion.div
-                className="pointer-events-none absolute inset-0 rounded-full bg-ember/20 blur-3xl"
+                className="pointer-events-none absolute inset-0 rounded-full bg-gold/20 blur-3xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: [0, 1, 0] }}
                 transition={{ duration: 1.4 }}
@@ -70,7 +70,7 @@ export function ArenaVisual({ accent }: { accent: string }) {
             )}
           </div>
 
-          <Team names={P2} label="Player 2" active={0} accent="#c9ccd3" />
+          <Team names={P2} label="Player 2" active={0} accent="#b4ccd3" />
         </motion.div>
       </Frame>
     </div>

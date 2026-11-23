@@ -9,7 +9,7 @@ import { EventsVisual } from "../mockups/EventsVisual";
 import { ShuttleVisual } from "../mockups/ShuttleVisual";
 import { Magnetic } from "../ui/Magnetic";
 import { MaskLines, Reveal } from "../ui/Reveal";
-import { SectionLabel } from "../ui/SectionLabel";
+import { WaveMark } from "../ui/WaveMark";
 
 const VISUALS: Record<ProjectVisual, (p: { accent: string }) => ReactNode> = {
   compass: CompassVisual,
@@ -38,12 +38,12 @@ function useSlot(progress: MotionValue<number>, i: number) {
 
 export function Work() {
   return (
-    <section id="work" data-scene="work" aria-labelledby="work-title" className="relative py-32 md:py-40">
+    <section id="work" aria-labelledby="work-title" className="relative py-32 md:py-40">
       <div className="mx-auto max-w-[1500px] px-[var(--gutter)]">
-        <SectionLabel index="03" title="Selected work" jp="卍解" />
+        <WaveMark />
         <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-12 md:items-end">
           <h2 id="work-title" className="display-tight text-[13vw] text-snow md:col-span-8 md:text-[6.4vw]">
-            <MaskLines lines={["Bankai", "releases."]} />
+            <MaskLines lines={["Ships I’ve", "built and sailed."]} />
           </h2>
           <Reveal className="md:col-span-4">
             <p className="text-lg leading-relaxed text-mist">
@@ -57,17 +57,9 @@ export function Work() {
       <MobileFlagships />
 
       <div className="mx-auto mt-32 max-w-[1500px] px-[var(--gutter)] md:mt-40">
-        <ProjectList title="More personal builds" label="Personal" items={moreProjects} />
+        <ProjectList title="More personal builds" items={moreProjects} />
         <div className="h-24" />
-        <ProjectList title="Community & hackathon" label="Community" items={communityProjects} />
-        <Reveal className="mt-10">
-          <p className="font-mono text-xs text-mist">
-            Open-source contributions to established projects live in their own section{" "}
-            <a href="#open-source" className="energy-link text-snow">
-              ↓ Open source
-            </a>
-          </p>
-        </Reveal>
+        <ProjectList title="Community and hackathon builds" items={communityProjects} />
       </div>
     </section>
   );
@@ -103,8 +95,8 @@ function FlagshipSequence() {
         <nav aria-label="Projects" className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-6">
           {flagshipProjects.map((p, i) => (
             <div key={p.slug} className="flex items-center gap-2">
-              <span className={`font-mono text-[10px] transition-colors duration-500 ${active === i ? "text-snow" : "text-dim"}`}>0{i + 1}</span>
-              <span className="relative h-px w-14 overflow-hidden bg-white/10">
+              <span className={`text-[11px] font-semibold transition-colors duration-500 ${active === i ? "text-snow" : "text-dim"}`}>{p.name}</span>
+              <span className="relative h-px w-10 overflow-hidden bg-white/10">
                 <span
                   className="absolute inset-0 origin-left transition-transform duration-700 ease-[var(--ease-cinema)]"
                   style={{ background: p.accent, transform: `scaleX(${active >= i ? 1 : 0})` }}
@@ -126,9 +118,14 @@ function Environment({ progress, i, accent }: { progress: MotionValue<number>; i
     <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ opacity }}>
       <motion.div
         className="absolute right-[-10%] top-1/2 h-[120vh] w-[80vw] -translate-y-1/2 rounded-full blur-[120px]"
-        style={{ scale, background: `radial-gradient(closest-side, ${accent}26, transparent)` }}
+        style={{ scale, background: `radial-gradient(closest-side, ${accent}2e, transparent)` }}
       />
-      <div className="display outline-text absolute -bottom-[4vw] right-[2vw] text-[26vw] leading-none">0{i + 1}</div>
+      {/* a sonar sweep behind each project */}
+      <svg className="absolute right-[18%] top-1/2 h-[90vh] w-[90vh] -translate-y-1/2 translate-x-1/2" viewBox="0 0 100 100">
+        {[0, 1.2, 2.4].map((delay) => (
+          <circle key={delay} cx="50" cy="50" r="48" fill="none" stroke={accent} strokeOpacity="0.25" strokeWidth="0.25" className="sonar" style={{ animationDelay: `${delay}s` }} />
+        ))}
+      </svg>
     </motion.div>
   );
 }
@@ -147,8 +144,8 @@ function ProjectText({ project: p, index, progress, active }: { project: Project
       aria-hidden={!active}
       aria-labelledby={`p-${p.slug}`}
     >
-      <p className="font-mono text-[11px] uppercase tracking-[0.24em]" style={{ color: p.accent }}>
-        0{index + 1} · {p.codename}
+      <p className="text-sm font-semibold" style={{ color: p.accent }}>
+        {p.codename}, {p.year}
       </p>
       <h3 id={`p-${p.slug}`} className="display-tight mt-4 text-[4.4vw] leading-[0.95] text-snow">
         {p.name}
@@ -165,7 +162,7 @@ function ProjectText({ project: p, index, progress, active }: { project: Project
       </ul>
       <div className="mt-7 flex flex-wrap items-center gap-2">
         {p.stack.map((s) => (
-          <span key={s} className="rounded-full border border-line px-3 py-1 font-mono text-[11px] text-mist">
+          <span key={s} className="rounded-full border border-line bg-abyss/30 px-3 py-1 text-xs text-silver">
             {s}
           </span>
         ))}
@@ -187,9 +184,9 @@ function ProjectLinks({ project: p, tabbable = true }: { project: Project; tabba
             target="_blank"
             rel="noreferrer"
             tabIndex={tabbable ? 0 : -1}
-            className="inline-flex items-center gap-2 rounded-full bg-snow px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-black transition-colors hover:bg-ice"
+            className="inline-flex items-center gap-2 rounded-full bg-snow px-5 py-2.5 text-sm font-semibold text-abyss transition-colors hover:bg-glow"
           >
-            Live <span className="out-arrow">↗</span>
+            Visit live site <span className="out-arrow">↗</span>
           </a>
         </Magnetic>
       )}
@@ -199,9 +196,9 @@ function ProjectLinks({ project: p, tabbable = true }: { project: Project; tabba
           target="_blank"
           rel="noreferrer"
           tabIndex={tabbable ? 0 : -1}
-          className="inline-flex items-center gap-2 rounded-full border border-line-strong px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-snow transition-colors hover:border-white/40"
+          className="inline-flex items-center gap-2 rounded-full border border-line-strong px-5 py-2.5 text-sm font-semibold text-snow transition-colors hover:border-glow/60"
         >
-          Code <span className="out-arrow">↗</span>
+          View code <span className="out-arrow">↗</span>
         </a>
       </Magnetic>
     </>
@@ -211,7 +208,7 @@ function ProjectLinks({ project: p, tabbable = true }: { project: Project; tabba
 function ProjectStage({ project: p, index, progress, active }: { project: Project; index: number; progress: MotionValue<number>; active: boolean }) {
   const slot = useSlot(progress, index);
   const reduce = useReducedMotion();
-  // Incoming from deep space, tilted; outgoing rushes past the camera.
+  // Rises from the deep, tilted; leaves past the camera.
   const z = useTransform(slot, (d) => (reduce ? 0 : d < 0 ? d * 700 : d * 380));
   const rotateX = useTransform(slot, (d) => (reduce ? 0 : d < 0 ? d * -14 : d * 6));
   const rotateY = useTransform(slot, (d) => (reduce ? 0 : d * -16));
@@ -233,7 +230,7 @@ function ProjectStage({ project: p, index, progress, active }: { project: Projec
         rel="noreferrer"
         tabIndex={-1}
         data-cursor="view"
-        data-cursor-label="View project"
+        data-cursor-label="Open"
         className="block h-full transition-transform duration-700 ease-[var(--ease-cinema)]"
         style={{ transform: `rotateX(${tilt.y * -4}deg) rotateY(${tilt.x * 5}deg) translateZ(0)` }}
         onPointerMove={(e) => {
@@ -252,7 +249,7 @@ function ProjectStage({ project: p, index, progress, active }: { project: Projec
 function MobileFlagships() {
   return (
     <div className="mt-16 space-y-24 px-[var(--gutter)] md:hidden">
-      {flagshipProjects.map((p, i) => {
+      {flagshipProjects.map((p) => {
         const Visual = VISUALS[p.visual];
         return (
           <article key={p.slug} aria-labelledby={`pm-${p.slug}`}>
@@ -265,8 +262,8 @@ function MobileFlagships() {
               </div>
             </Reveal>
             <Reveal delay={0.05}>
-              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.24em]" style={{ color: p.accent }}>
-                0{i + 1} · {p.codename}
+              <p className="mt-8 text-sm font-semibold" style={{ color: p.accent }}>
+                {p.codename}, {p.year}
               </p>
               <h3 id={`pm-${p.slug}`} className="display-tight mt-3 text-[11vw] text-snow">
                 {p.name}
@@ -282,7 +279,7 @@ function MobileFlagships() {
               </ul>
               <div className="mt-5 flex flex-wrap gap-2">
                 {p.stack.map((s) => (
-                  <span key={s} className="rounded-full border border-line px-3 py-1 font-mono text-[11px] text-mist">
+                  <span key={s} className="rounded-full border border-line bg-abyss/30 px-3 py-1 text-xs text-silver">
                     {s}
                   </span>
                 ))}
@@ -298,13 +295,12 @@ function MobileFlagships() {
   );
 }
 
-function ProjectList({ title, label, items }: { title: string; label: string; items: SmallProject[] }) {
+function ProjectList({ title, items }: { title: string; items: SmallProject[] }) {
   return (
     <div>
       <Reveal>
-        <div className="flex items-baseline justify-between border-b border-line pb-4">
+        <div className="border-b border-line pb-4">
           <h3 className="display-tight text-3xl text-snow md:text-4xl">{title}</h3>
-          <span className="eyebrow">{label}</span>
         </div>
       </Reveal>
       <ul>
@@ -316,17 +312,17 @@ function ProjectList({ title, label, items }: { title: string; label: string; it
               rel="noreferrer"
               className="group relative grid grid-cols-12 items-baseline gap-4 border-b border-line py-6 md:py-7"
             >
-              <span className="absolute inset-x-0 bottom-[-1px] h-px origin-left scale-x-0 bg-gradient-to-r from-volt to-transparent transition-transform duration-700 ease-[var(--ease-cinema)] group-hover:scale-x-100" />
+              <span className="absolute inset-x-0 bottom-[-1px] h-px origin-left scale-x-0 bg-gradient-to-r from-glow to-transparent transition-transform duration-700 ease-[var(--ease-cinema)] group-hover:scale-x-100" />
+              <span className="pointer-events-none absolute inset-0 origin-bottom scale-y-0 bg-gradient-to-t from-glow/[0.07] to-transparent transition-transform duration-700 ease-[var(--ease-cinema)] group-hover:scale-y-100" />
               <span className="col-span-12 flex items-baseline gap-4 md:col-span-4">
-                <span className="font-mono text-[11px] text-dim">0{i + 1}</span>
                 <span className="display-tight text-2xl text-snow transition-transform duration-500 ease-[var(--ease-cinema)] group-hover:translate-x-2 md:text-3xl">
                   {p.name}
                 </span>
               </span>
               <span className="col-span-12 text-[15px] leading-relaxed text-mist md:col-span-5">{p.description}</span>
               <span className="col-span-12 flex flex-wrap items-center gap-2 md:col-span-3 md:justify-end">
-                {p.note && <span className="rounded-full border border-volt/30 px-2.5 py-0.5 font-mono text-[10.5px] text-ice">{p.note}</span>}
-                <span className="font-mono text-[11px] text-dim">{p.stack.join(" · ")}</span>
+                {p.note && <span className="rounded-full border border-glow/30 px-2.5 py-0.5 text-xs text-spray">{p.note}</span>}
+                <span className="text-xs text-mist">{p.stack.join(", ")}</span>
                 <span className="out-arrow text-snow">↗</span>
               </span>
             </a>

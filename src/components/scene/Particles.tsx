@@ -4,10 +4,10 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { store } from "@/lib/store";
-import { live } from "./live";
 import { seeded } from "./random";
+import { sea } from "./sea";
 
-
+/* Marine snow drifting down, bubbles rising, and a few bioluminescent motes. */
 const vertex = /* glsl */ `
   uniform float uTime;
   uniform float uTravel;
@@ -17,46 +17,64 @@ const vertex = /* glsl */ `
   attribute float aSeed;
   attribute float aSize;
   varying float vAlpha;
-  varying float vTint;
+  varying float vKind;
   void main() {
     vec3 p = position;
-    // the world streams upward past the falling blade
-    p.y = mod(p.y + uTravel + uTime * 0.12 + 12.0, 24.0) - 12.0;
-    p.x += sin(uTime * 0.21 + aSeed * 6.283) * 0.25;
+    float bubble = step(0.8, aSeed);
+    // bubbles rise fast and wobble; snow sinks slowly
+    float drift = mix(-0.08, 0.55 + aSeed * 0.5, bubble);
+    p.y = mod(p.y + uTravel + uTime * drift + 12.0, 24.0) - 12.0;
+    p.x += sin(uTime * (0.3 + bubble * 2.0) + aSeed * 6.283) * mix(0.25, 0.12, bubble);
     p.z += cos(uTime * 0.17 + aSeed * 12.1) * 0.25;
-    // parallax by depth
     float depth = clamp((p.z + 30.0) / 35.0, 0.0, 1.0);
-    p.xy += uPointer * depth * 0.6;
+    p.xy += uPointer * depth * 0.5;
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = aSize * uPixelRatio * (26.0 / -mv.z) * (1.0 + uStretch * depth);
+    gl_PointSize = aSize * (1.0 + bubble * 0.8) * uPixelRatio * (26.0 / -mv.z) * (1.0 + uStretch * depth);
     float twinkle = 0.55 + 0.45 * sin(uTime * (0.6 + aSeed * 1.8) + aSeed * 40.0);
-    float nearFade = smoothstep(6.0, 3.0, p.z);
-    float farFade = smoothstep(-32.0, -18.0, p.z);
-    vAlpha = twinkle * nearFade * farFade;
-    vTint = step(0.86, aSeed);
+    vAlpha = twinkle * smoothstep(6.0, 3.0, p.z) * smoothstep(-32.0, -18.0, p.z);
+    vKind = bubble + step(0.97, aSeed);
   }
 `;
 
 const fragment = /* glsl */ `
-  uniform vec3 uColorA;
-  uniform vec3 uColorB;
   uniform float uOpacity;
+  uniform float uWater;
+  uniform float uBufH;
+  uniform float uAbyss;
   varying float vAlpha;
-  varying float vTint;
+  varying float vKind;
   void main() {
-    float d = length(gl_PointCoord - 0.5);
-    float a = pow(smoothstep(0.5, 0.0, d), 1.6) * vAlpha * uOpacity;
-    vec3 c = mix(uColorA, uColorB, vTint);
-    gl_FragColor = vec4(c * a, a);
+    // only underwater
+    if (gl_FragCoord.y / uBufH > uWater) discard;
+    vec2 c = gl_PointCoord - 0.5;
+    float d = length(c);
+    vec3 col;
+    float a;
+    if (vKind > 1.5) {
+      // bioluminescent mote, brighter the deeper we are
+      a = pow(smoothstep(0.5, 0.0, d), 2.0) * (0.6 + uAbyss * 1.6);
+      col = vec3(0.43, 0.94, 0.85);
+    } else if (vKind > 0.5) {
+      // bubble: bright rim, hollow centre, a little highlight
+      float rim = smoothstep(0.5, 0.42, d) * smoothstep(0.25, 0.42, d);
+      float hi = smoothstep(0.14, 0.0, length(c - vec2(-0.14, 0.14)));
+      a = (rim * 0.7 + hi) * 0.9;
+      col = vec3(0.8, 0.97, 0.95);
+    } else {
+      a = pow(smoothstep(0.5, 0.0, d), 1.6) * 0.75;
+      col = vec3(0.7, 0.84, 0.86);
+    }
+    a *= vAlpha * uOpacity;
+    gl_FragColor = vec4(col * a, a);
   }
 `;
 
 export function Particles() {
-  const count = store.isMobile ? 650 : 2200;
+  const count = store.isMobile ? 600 : 1800;
 
   const { geometry, material } = useMemo(() => {
-    const rnd = seeded(42);
+    const rnd = seeded(7);
     const pos = new Float32Array(count * 3);
     const seed = new Float32Array(count);
     const size = new Float32Array(count);
@@ -81,11 +99,13 @@ export function Particles() {
         uPixelRatio: { value: 1 },
         uStretch: { value: 0 },
         uOpacity: { value: 0 },
-        uColorA: { value: new THREE.Color("#c9ccd3") },
-        uColorB: { value: new THREE.Color("#4da3ff") },
+        uWater: { value: 0 },
+        uBufH: { value: 1 },
+        uAbyss: { value: 0 },
       },
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
     });
     return { geometry: g, material: m };
@@ -95,14 +115,17 @@ export function Particles() {
 
   useFrame((state) => {
     const u = material.uniforms;
-    u.uTime.value = store.reducedMotion ? 0 : live.time;
-    u.uTravel.value = live.travel;
+    u.uTime.value = sea.time;
+    // scrolling down makes the water stream upward past the camera
+    u.uTravel.value = store.depth * 6;
     (u.uPointer.value as THREE.Vector2).set(store.pointer.x, store.pointer.y);
     u.uPixelRatio.value = state.gl.getPixelRatio();
-    u.uStretch.value = Math.min(Math.abs(store.velocity) * 0.02, 1.2) + live.surge * 1.5;
-    u.uOpacity.value = live.world * (0.35 + 0.65 * live.intro) * (1 + live.surge * 1.5);
-    (u.uColorB.value as THREE.Color).copy(live.color);
+    u.uStretch.value = Math.min(Math.abs(store.velocity) * 0.02, 1.2) + sea.storm;
+    u.uOpacity.value = sea.intro * (1 + sea.gold * 0.6);
+    u.uWater.value = store.depth + 1 - store.split;
+    u.uBufH.value = state.gl.domElement.height;
+    u.uAbyss.value = Math.min(1, Math.max(0, (store.depth + 1) / Math.max(store.pages, 1)));
   });
 
-  return <points geometry={geometry} material={material} frustumCulled={false} />;
+  return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={1} />;
 }

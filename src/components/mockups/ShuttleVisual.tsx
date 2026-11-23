@@ -61,8 +61,8 @@ export function ShuttleVisual({ accent }: { accent: string }) {
                   animate={inView ? { r: [24, 30, 24] } : undefined}
                   transition={{ duration: 3, repeat: Infinity, delay: i * 0.6 }}
                 />
-                <circle cx={s.x} cy={s.y} r="4" fill="#f2f3f6" />
-                <text x={i === 2 ? s.x - 12 : s.x + 12} y={s.y - 12} textAnchor={i === 2 ? "end" : "start"} fill="#8a8e98" fontSize="10" fontFamily="var(--font-mono)">
+                <circle cx={s.x} cy={s.y} r="4" fill="#e6f3f1" />
+                <text x={i === 2 ? s.x - 12 : s.x + 12} y={s.y - 12} textAnchor={i === 2 ? "end" : "start"} fill="#7d9ca8" fontSize="10" fontFamily="var(--font-mono)">
                   {s.label}
                 </text>
               </g>
@@ -94,7 +94,7 @@ export function ShuttleVisual({ accent }: { accent: string }) {
                   {Math.min(pending, QUORUM)}/{QUORUM}
                 </span>
               </div>
-              <motion.p className="mt-2 font-mono text-[10.5px]" animate={{ color: dispatched ? "#f2f3f6" : "#5d616b" }}>
+              <motion.p className="mt-2 font-mono text-[10.5px]" animate={{ color: dispatched ? "#e6f3f1" : "#4f6f7c" }}>
                 {dispatched ? "quorum reached → dispatch alert" : "st_distance geofence ✓"}
               </motion.p>
             </div>

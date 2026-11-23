@@ -4,8 +4,9 @@ import { AnimatePresence, animate, motion, useInView } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { contributionSnapshot } from "@/content/contributions";
 import { ossOrgs, ossStats, type OssOrg } from "@/content/profile";
+import { JollyRoger } from "../ui/Pirate";
 import { MaskLines, Reveal } from "../ui/Reveal";
-import { SectionLabel } from "../ui/SectionLabel";
+import { WaveMark } from "../ui/WaveMark";
 
 /* Node layout in a 600×420 space. */
 const CENTER = { x: 300, y: 210 };
@@ -22,35 +23,33 @@ export function OpenSource() {
   const org = ossOrgs.find((o) => o.id === selected)!;
 
   return (
-    <section id="open-source" data-scene="open-source" aria-labelledby="oss-title" className="relative px-[var(--gutter)] py-32 md:py-44">
+    <section id="open-source" aria-labelledby="oss-title" className="relative px-[var(--gutter)] py-32 md:py-44">
       <div className="mx-auto max-w-[1500px]">
-        <SectionLabel index="04" title="Open source" jp="霊圧" />
+        <WaveMark />
         <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-12 md:items-end">
           <h2 id="oss-title" className="display-tight text-[12vw] text-snow md:col-span-8 md:text-[6vw]">
-            <MaskLines lines={["Code doesn’t get", "better in isolation."]} />
+            <MaskLines lines={["Every crew", "needs allies."]} />
           </h2>
           <Reveal className="md:col-span-4">
             <p className="text-lg leading-relaxed text-mist">
-              Fixes and features shipped into projects maintained by other people — reviewed, discussed, and merged.
+              Code doesn’t get better in isolation. These are fixes and features shipped into projects other crews maintain — reviewed, discussed and merged.
             </p>
           </Reveal>
         </div>
 
         {/* verified stats */}
         <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line md:grid-cols-4">
-          <Stat value={ossStats.mergedExternal} label="PRs merged into repos I don’t own" />
+          <Stat value={ossStats.mergedExternal} label={`PRs merged into repos I don’t own, as of ${ossStats.asOf}`} />
           <Stat value={contributionSnapshot.total} label="contributions in the last year" />
           <Stat value={contributionSnapshot.pullRequests} label="pull requests opened in the last year" />
           <Stat value={contributionSnapshot.commits} label="commits in the last year" />
         </div>
-        <p className="mt-3 font-mono text-[10.5px] text-dim">Source: GitHub API · {ossStats.asOf}</p>
 
         <FeaturedPR />
 
         {/* network + detail */}
         <div className="mt-24 grid grid-cols-1 gap-10 lg:grid-cols-12">
           <Reveal className="lg:col-span-7">
-            <p className="eyebrow mb-4">Contribution network — select a node</p>
             <Network selected={selected} onSelect={setSelected} />
           </Reveal>
           <div className="lg:col-span-5">
@@ -74,7 +73,7 @@ function Stat({ value, label }: { value: number; label: string }) {
     return () => c.stop();
   }, [inView, value]);
   return (
-    <div className="bg-void/80 p-6 backdrop-blur md:p-8">
+    <div className="bg-abyss/70 p-6 backdrop-blur md:p-8">
       <p ref={ref} className="display text-5xl text-snow md:text-6xl" aria-label={String(value)}>
         {n}
       </p>
@@ -104,18 +103,18 @@ function FeaturedPR() {
   return (
     <div className="mt-24 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
       <Reveal className="lg:col-span-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-volt">Featured · merged Sep 2026</p>
+        <p className="text-sm font-semibold text-glow">Merged in September 2026</p>
         <h3 className="display-tight mt-4 text-4xl text-snow md:text-5xl">Java, in production.</h3>
         <p className="mt-5 text-lg leading-relaxed text-silver">
           The training arc, applied: a backend fix in cBioPortal’s Spring codebase. Null filter values were reaching a ClickHouse SQL mapper and
           surfacing as 500s — now they’re dropped before categorization, with a JUnit test to keep it that way.
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-3 font-mono text-[11px]">
-          <span className="rounded-full bg-volt/15 px-3 py-1 text-ice">● Merged</span>
+          <span className="flex items-center gap-1.5 rounded-full bg-glow/15 px-3 py-1 text-spray"><span className="h-1.5 w-1.5 rounded-full bg-glow" />Merged</span>
           <span className="text-mist">{pr.repo}#{pr.number}</span>
           <span className="text-dim">{pr.diff}</span>
         </div>
-        <a href={pr.url} target="_blank" rel="noreferrer" className="energy-link mt-6 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.16em] text-snow">
+        <a href={pr.url} target="_blank" rel="noreferrer" className="wave-link mt-6 inline-flex items-center gap-2 text-sm font-semibold text-snow">
           Read the pull request <span className="out-arrow">↗</span>
         </a>
       </Reveal>
@@ -123,14 +122,13 @@ function FeaturedPR() {
         <figure className="glass overflow-hidden rounded-2xl">
           <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 font-mono text-[11px]">
             <span className="text-silver">StudyViewFilterFactory.java</span>
-            <span className="text-dim">excerpt of the merged diff</span>
           </figcaption>
           <pre className="overflow-x-auto py-4 font-mono text-[11.5px] leading-[1.85] md:text-[12.5px]" data-lenis-prevent-horizontal>
             <code>
               {DIFF.map((l, i) => (
                 <motion.span
                   key={i}
-                  className={`block px-5 ${l.t === "+" ? "bg-volt/[0.07] text-ice" : l.t === "-" ? "bg-ember/[0.08] text-ember/90" : "text-dim"}`}
+                  className={`block px-5 ${l.t === "+" ? "bg-glow/[0.07] text-spray" : l.t === "-" ? "bg-[#ff8a7a]/[0.08] text-[#ff9d8f]" : "text-dim"}`}
                   initial={{ opacity: 0 }}
                   whileInView={{ opacity: 1 }}
                   viewport={{ once: true }}
@@ -171,13 +169,13 @@ function Network({ selected, onSelect }: { selected: string; onSelect: (id: stri
           const lit = o.id === selected;
           return (
             <g key={o.id}>
-              <line x1={CENTER.x} y1={CENTER.y} x2={p.x} y2={p.y} stroke="#fff" strokeOpacity={lit ? 0.25 : 0.08} />
+              <line x1={CENTER.x} y1={CENTER.y} x2={p.x} y2={p.y} stroke="#c9f4ec" strokeOpacity={lit ? 0.25 : 0.08} />
               <motion.line
                 x1={CENTER.x}
                 y1={CENTER.y}
                 x2={p.x}
                 y2={p.y}
-                stroke="#4da3ff"
+                stroke="#6ff0d8"
                 strokeWidth={lit ? 1.5 : 1}
                 strokeOpacity={lit ? 0.9 : 0.3}
                 strokeDasharray="2 14"
@@ -192,15 +190,19 @@ function Network({ selected, onSelect }: { selected: string; onSelect: (id: stri
           const lit = s.org === selected;
           return (
             <g key={s.key} opacity={lit ? 1 : 0.45}>
-              <line x1={p.x} y1={p.y} x2={s.x} y2={s.y} stroke="#fff" strokeOpacity={0.12} />
-              <circle cx={s.x} cy={s.y} r={3.2} fill={s.state === "merged" ? "#4da3ff" : "#030304"} stroke="#4da3ff" strokeWidth={1.2} />
+              <line x1={p.x} y1={p.y} x2={s.x} y2={s.y} stroke="#c9f4ec" strokeOpacity={0.14} />
+              <circle cx={s.x} cy={s.y} r={3.2} fill={s.state === "merged" ? "#6ff0d8" : "#021420"} stroke="#6ff0d8" strokeWidth={1.2} />
             </g>
           );
         })}
-        <circle cx={CENTER.x} cy={CENTER.y} r={34} fill="none" stroke="#fff" strokeOpacity={0.1} />
-        <circle cx={CENTER.x} cy={CENTER.y} r={5} fill="#f2f3f6" />
+        {[0, 1.2, 2.4].map((delay) => (
+          <circle key={delay} cx={CENTER.x} cy={CENTER.y} r={260} fill="none" stroke="#6ff0d8" strokeOpacity={0.35} strokeWidth={0.8} className="sonar" style={{ animationDelay: `${delay}s` }} />
+        ))}
+        <circle cx={CENTER.x} cy={CENTER.y} r={34} fill="none" stroke="#c9f4ec" strokeOpacity={0.14} />
+
       </svg>
-      <span className="absolute -translate-x-1/2 translate-y-4 font-mono text-[10px] uppercase tracking-[0.24em] text-snow" style={{ left: "50%", top: "50%" }}>
+      <span className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-xs font-semibold text-snow" style={{ left: "50%", top: "50%" }}>
+        <JollyRoger className="h-12 w-12 drop-shadow-[0_0_14px_rgb(111_240_216/0.5)]" />
         Injora
       </span>
 
@@ -213,7 +215,7 @@ function Network({ selected, onSelect }: { selected: string; onSelect: (id: stri
             onClick={() => onSelect(o.id)}
             aria-pressed={lit}
             className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3.5 py-1.5 text-[12px] backdrop-blur transition-all duration-500 md:text-[13px] ${
-              lit ? "border-volt/70 bg-volt/15 text-snow shadow-[0_0_30px_rgb(77_163_255/0.35)]" : "border-line-strong bg-void/70 text-silver hover:border-white/40"
+              lit ? "border-glow/70 bg-glow/15 text-snow shadow-[0_0_30px_rgb(111_240_216/0.35)]" : "border-line-strong bg-abyss/70 text-silver hover:border-white/40"
             }`}
             style={{ left: `${(p.x / 600) * 100}%`, top: `${(p.y / 420) * 100}%` }}
           >
@@ -221,9 +223,9 @@ function Network({ selected, onSelect }: { selected: string; onSelect: (id: stri
           </button>
         );
       })}
-      <div className="absolute bottom-0 right-0 flex gap-4 font-mono text-[10px] text-dim">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-volt" /> merged</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-volt" /> open</span>
+      <div className="absolute bottom-0 right-0 flex gap-4 text-xs text-mist">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-glow" /> merged</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-glow" /> open</span>
       </div>
     </div>
   );
@@ -234,7 +236,7 @@ function OrgDetail({ org }: { org: OssOrg }) {
     <div className="glass rounded-2xl p-6 md:p-7" aria-live="polite">
       <AnimatePresence mode="wait">
         <motion.div key={org.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }}>
-          <p className="eyebrow !text-volt">{org.kind}</p>
+          <p className="kicker !text-glow">{org.kind}</p>
           <a href={org.url} target="_blank" rel="noreferrer" className="group mt-3 inline-flex items-baseline gap-2">
             <span className="display-tight text-3xl text-snow md:text-4xl">{org.name}</span>
             <span className="out-arrow text-mist">↗</span>
@@ -248,7 +250,7 @@ function OrgDetail({ org }: { org: OssOrg }) {
                     <span className="truncate text-mist">
                       {c.repo}#{c.number}
                     </span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 ${c.state === "merged" ? "bg-volt/15 text-ice" : "border border-white/15 text-mist"}`}>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 ${c.state === "merged" ? "bg-glow/15 text-spray" : "border border-gold/40 text-gold"}`}>
                       {c.state === "merged" ? "Merged" : "Open"}
                     </span>
                   </div>
@@ -272,7 +274,7 @@ function Heatmap() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-10%" });
   const level = (n: number) => (n === 0 ? 0 : n < 3 ? 1 : n < 6 ? 2 : n < 10 ? 3 : 4);
-  const colors = ["rgba(255,255,255,0.045)", "rgba(77,163,255,0.28)", "rgba(77,163,255,0.5)", "rgba(77,163,255,0.78)", "#cfe6ff"];
+  const colors = ["rgba(200,240,235,0.06)", "rgba(111,240,216,0.25)", "rgba(111,240,216,0.48)", "rgba(111,240,216,0.75)", "#c9f4ec"];
   const cell = 11;
   const gap = 3;
 
@@ -280,12 +282,12 @@ function Heatmap() {
     <Reveal className="mt-24">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <p className="eyebrow">Reiatsu readings</p>
+          <h3 className="display-tight text-3xl text-snow md:text-4xl">A year at sea</h3>
           <p className="mt-2 text-lg text-silver">
-            <span className="text-snow">{contributionSnapshot.total}</span> contributions · Sep 2025 → Sep 2026
+            <span className="text-snow">{contributionSnapshot.total}</span> contributions from September 2025 to September 2026
           </p>
         </div>
-        <div className="flex items-center gap-1.5 font-mono text-[10px] text-dim">
+        <div className="flex items-center gap-1.5 text-xs text-mist">
           less
           {colors.map((c) => (
             <span key={c} className="h-2.5 w-2.5 rounded-[2px]" style={{ background: c }} />
@@ -310,9 +312,10 @@ function Heatmap() {
                 height={cell}
                 rx={2}
                 fill={colors[level(n)]}
-                initial={{ opacity: 0 }}
-                animate={inView ? { opacity: 1 } : undefined}
-                transition={{ delay: x * 0.018, duration: 0.4 }}
+                style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}
+                initial={{ opacity: 0, scaleY: 0 }}
+                animate={inView ? { opacity: 1, scaleY: 1 } : undefined}
+                transition={{ delay: x * 0.018 + (6 - y) * 0.03, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               />
             ))
           )}
