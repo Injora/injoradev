@@ -66,6 +66,7 @@ export const techs: Tech[] = [
   { name: "React Native", group: "shikai", weight: 0.6, note: "One Expo codebase for student, driver and admin apps.", usedIn: ["Shuttle Tracker"] },
   { name: "HTML / CSS", group: "shikai", weight: 0.7, note: "Hand-built layouts, keyframes and motion without a framework.", usedIn: ["Bleach Battle Arena", "CSS Art Museum contribution"] },
   { name: "Tailwind", group: "shikai", weight: 0.5, note: "Utility-first styling when speed matters.", usedIn: ["Nirmaan 3.0 registration"] },
+  { name: "Astro", group: "shikai", weight: 0.45, note: "Content-first sites that ship almost no JavaScript.", usedIn: ["Profile arsenal"] },
 
   { name: "Node.js", group: "bankai", weight: 0.9, note: "Servers, CLIs and realtime game loops.", usedIn: ["Spin-n-Spill", "NST-Events"] },
   { name: "Express", group: "bankai", weight: 0.85, note: "API layer that owns OAuth, JWT rotation and RBAC.", usedIn: ["NST-Events", "Spin-n-Spill"] },
@@ -73,6 +74,7 @@ export const techs: Tech[] = [
   { name: "Socket.io", group: "bankai", weight: 0.5, note: "Room-based realtime sync across devices.", usedIn: ["Spin-n-Spill"] },
   { name: "Prisma", group: "bankai", weight: 0.55, note: "Typed data access with a cached research model.", usedIn: ["OpenSource Compass"] },
   { name: "Python / Django", group: "bankai", weight: 0.45, note: "Listed in my arsenal for backend work.", usedIn: ["Profile arsenal"] },
+  { name: "Go", group: "bankai", weight: 0.45, note: "Small, fast services and CLIs.", usedIn: ["Profile arsenal"] },
 
   { name: "PostgreSQL", group: "kido", weight: 0.9, note: "Row-Level Security as a second line of defense.", usedIn: ["NST-Events", "Nirmaan 3.0 registration", "OpenSource Compass"] },
   { name: "PostGIS", group: "kido", weight: 0.6, note: "Geofenced pickups and location-verified attendance.", usedIn: ["Shuttle Tracker", "NST-Events"] },
@@ -142,7 +144,7 @@ export const flagshipProjects: Project[] = [
       "Google OAuth restricted to institutional domains; 15-min JWT + rotating refresh tokens.",
     ],
     stack: ["TypeScript", "Express", "PostgreSQL", "OAuth"],
-    code: "https://github.com/Injora/nst--events",
+    code: "https://github.com/Injora/nst-funds",
     visual: "events",
     accent: "#4da3ff",
     year: "2026",
@@ -411,7 +413,7 @@ export const journey: Milestone[] = [
   { date: "Mar 2026", stage: "Building", title: "Bleach Battle Arena ships", body: "A full drafting + battle engine in vanilla JS, live on its own subdomain.", href: "https://seireitei.injoradev.in/" },
   { date: "Apr 2026", stage: "AI / ML", title: "First AI build", body: "HealthQuest wires n8n, Groq and Supabase into a gamified health tracker.", href: "https://github.com/Injora/HealthQuest" },
   { date: "May 2026", stage: "Building", title: "Realtime", body: "Spin-n-Spill: room-based multiplayer over Socket.io.", href: "https://github.com/Injora/Spin-n-Spill" },
-  { date: "Aug–Sep 2026", stage: "Systems", title: "Systems era", body: "Shuttle Tracker, NST-Events and OpenSource Compass — RLS, PostGIS, RBAC and evidence pipelines.", href: "https://github.com/Injora/nst--events" },
+  { date: "Aug–Sep 2026", stage: "Systems", title: "Systems era", body: "Shuttle Tracker, NST-Events and OpenSource Compass — RLS, PostGIS, RBAC and evidence pipelines.", href: "https://github.com/Injora/nst-funds" },
   { date: "Sep 2026", stage: "Open Source", title: "Java in production", body: "A Spring backend fix merged into cBioPortal — the training arc pays off.", href: "https://github.com/cBioPortal/cbioportal/pull/12333" },
   { date: "Next", stage: "AI / ML", title: "Expanding toward AI / ML", body: "Taking the full-stack foundation into machine learning systems." },
 ];
